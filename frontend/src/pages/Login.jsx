@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../services/api.js'
-
+ 
 export default function Login() {
   const navigate = useNavigate()
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ username: '', email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
+  const [showPassword, setShowPassword] = useState(false)
+ 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -26,14 +27,14 @@ export default function Login() {
       setLoading(false)
     }
   }
-
+ 
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 20,
     }}>
       <div style={{ width: '100%', maxWidth: 400, animation: 'fadeIn 0.4s ease' }}>
-
+ 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{
@@ -44,13 +45,13 @@ export default function Login() {
           <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--green)', fontSize: 22, letterSpacing: 4 }}>NETGUARD</div>
           <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 10, letterSpacing: 2, marginTop: 4 }}>NETWORK SECURITY MONITOR</div>
         </div>
-
+ 
         {/* Card */}
         <div className="card">
           <div className="card-title">
             {mode === 'login' ? 'Access Terminal' : 'Register Account'}
           </div>
-
+ 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <label style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', letterSpacing: 1.5, display: 'block', marginBottom: 6 }}>
@@ -64,7 +65,7 @@ export default function Login() {
                 required
               />
             </div>
-
+ 
             {mode === 'register' && (
               <div>
                 <label style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', letterSpacing: 1.5, display: 'block', marginBottom: 6 }}>
@@ -79,20 +80,35 @@ export default function Login() {
                 />
               </div>
             )}
-
+ 
             <div>
               <label style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', letterSpacing: 1.5, display: 'block', marginBottom: 6 }}>
                 PASSWORD
               </label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="enter password..."
-                required
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="enter password..."
+                  required
+                  style={{ paddingRight: 40, width: '100%', boxSizing: 'border-box' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  style={{
+                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--muted)', fontSize: 14, padding: 0, lineHeight: 1,
+                  }}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? '🙈' : '👁'}
+                </button>
+              </div>
             </div>
-
+ 
             {error && (
               <div style={{
                 background: 'var(--red-dim)', border: '1px solid rgba(255,68,68,0.3)',
@@ -102,17 +118,17 @@ export default function Login() {
                 ⚠ {error}
               </div>
             )}
-
+ 
             <button type="submit" className="btn-primary" style={{ marginTop: 4, padding: '12px 20px', fontSize: 12 }} disabled={loading}>
               {loading ? <span className="spinner" /> : (mode === 'login' ? 'AUTHENTICATE' : 'CREATE ACCOUNT')}
             </button>
           </form>
-
+ 
           <div style={{ marginTop: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)' }}>
             {mode === 'login' ? (
-              <>No account? <button onClick={() => setMode('register')} style={{ background: 'none', border: 'none', color: 'var(--green)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10 }}>REGISTER</button></>
+              <>No account? <button onClick={() => { setMode('register'); setShowPassword(false) }} style={{ background: 'none', border: 'none', color: 'var(--green)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10 }}>REGISTER</button></>
             ) : (
-              <>Have an account? <button onClick={() => setMode('login')} style={{ background: 'none', border: 'none', color: 'var(--green)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10 }}>LOGIN</button></>
+              <>Have an account? <button onClick={() => { setMode('login'); setShowPassword(false) }} style={{ background: 'none', border: 'none', color: 'var(--green)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10 }}>LOGIN</button></>
             )}
           </div>
         </div>
