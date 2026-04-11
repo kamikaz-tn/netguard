@@ -46,13 +46,16 @@ export default function AgentSetup() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  function downloadFile(url, filename) {
+  async function downloadFile(url, filename) {
+    const response = await fetch(url)
+    const blob = await response.blob()
+    const blobUrl = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
+    a.href = blobUrl
     a.download = filename
-    a.target = '_blank'
     a.click()
-  }
+    URL.revokeObjectURL(blobUrl)
+}
 
   return (
     <div className="animate-in" style={{ maxWidth: 760 }}>
