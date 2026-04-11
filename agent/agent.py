@@ -34,6 +34,8 @@ import argparse
 import logging
 from datetime import datetime
 from typing import List, Dict, Optional, Any
+from pathlib import Path
+
 
 import requests
 from dotenv import load_dotenv
@@ -57,7 +59,7 @@ except ImportError:
     print("   ARP scanning will use ping fallback (less accurate).\n")
 
 # ── Load config ────────────────────────────────────────────────────────────────
-load_dotenv()
+load_dotenv(Path(__file__).parent / '.env')
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 AGENT_SECRET = os.getenv("AGENT_SECRET", "change_this_shared_secret")
