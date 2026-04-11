@@ -1,0 +1,220 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+const STEPS = [
+  {
+    num: '01',
+    title: 'Install Python',
+    desc: 'Make sure Python 3.11 or higher is installed on your machine.',
+    code: 'python --version',
+    link: { label: 'Download Python', url: 'https://python.org/downloads' },
+  },
+  {
+    num: '02',
+    title: 'Install Nmap',
+    desc: 'The agent uses Nmap to scan open ports on your network.',
+    code: null,
+    link: { label: 'Download Nmap', url: 'https://nmap.org/download' },
+  },
+  {
+    num: '03',
+    title: 'Install Agent Dependencies',
+    desc: 'Open a terminal in the folder where you downloaded the agent and run:',
+    code: 'pip install -r requirements.txt',
+    link: null,
+  },
+  {
+    num: '04',
+    title: 'Run the Agent',
+    desc: 'Run the agent as Administrator (Windows) or with sudo (Linux/Mac) for ARP scanning:',
+    code: 'python agent.py --scan',
+    link: null,
+  },
+]
+
+const AGENT_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/main/agent/agent.py'
+const REQUIREMENTS_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/main/agent/requirements.txt'
+
+export default function AgentSetup() {
+  const navigate = useNavigate()
+  const [agreed, setAgreed] = useState(false)
+  const [copied, setCopied] = useState(null)
+
+  function copyCode(code, id) {
+    navigator.clipboard.writeText(code)
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  function downloadFile(url, filename) {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.target = '_blank'
+    a.click()
+  }
+
+  return (
+    <div className="animate-in" style={{ maxWidth: 760 }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <button
+          onClick={() => navigate('/overview')}
+          style={{ background: 'none', border: 'none', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 2, cursor: 'pointer', marginBottom: 16, padding: 0 }}
+        >
+          ← BACK TO OVERVIEW
+        </button>
+        <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--text)', letterSpacing: 2, marginBottom: 8 }}>
+          LOCAL AGENT SETUP
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, maxWidth: 600 }}>
+          NetGuard uses a lightweight local agent to scan your network. Because your router and devices
+          live on your home LAN, the scan must run <span style={{ color: 'var(--green)' }}>on your machine</span> — not from the cloud.
+          Results are pushed securely to your NetGuard dashboard.
+        </p>
+      </div>
+
+      {/* How it works */}
+      <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
+        <div className="card-title" style={{ marginBottom: 16 }}>HOW IT WORKS</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+          {[
+            { icon: '💻', label: 'Your Machine' },
+            { icon: '→', label: null },
+            { icon: '🔍', label: 'ARP + Port Scan' },
+            { icon: '→', label: null },
+            { icon: '☁️', label: 'NetGuard Cloud' },
+            { icon: '→', label: null },
+            { icon: '📊', label: 'Your Dashboard' },
+          ].map((item, i) => (
+            item.label === null
+              ? <div key={i} style={{ color: 'var(--muted)', fontSize: 18, margin: '0 8px' }}>→</div>
+              : (
+                <div key={i} style={{ textAlign: 'center', padding: '10px 16px', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 22 }}>{item.icon}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 4, letterSpacing: 1 }}>{item.label}</div>
+                </div>
+              )
+          ))}
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
+        <div className="card-title" style={{ marginBottom: 20 }}>SETUP STEPS</div>
+        {STEPS.map((step, i) => (
+          <div key={i} style={{ display: 'flex', gap: 16, marginBottom: i < STEPS.length - 1 ? 24 : 0 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, color: 'var(--green)', opacity: 0.4, flexShrink: 0, lineHeight: 1 }}>{step.num}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text)', letterSpacing: 1, marginBottom: 6 }}>{step.title}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: step.code ? 10 : 0 }}>{step.desc}</div>
+              {step.code && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <code style={{
+                    background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4,
+                    padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11,
+                    color: 'var(--green)', flex: 1,
+                  }}>
+                    {step.code}
+                  </code>
+                  <button
+                    onClick={() => copyCode(step.code, i)}
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 10px', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    {copied === i ? '✓ COPIED' : 'COPY'}
+                  </button>
+                </div>
+              )}
+              {step.link && (
+                <a href={step.link.url} target="_blank" rel="noopener noreferrer"
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--green)', textDecoration: 'none', letterSpacing: 1 }}>
+                  ↗ {step.link.label}
+                </a>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Safety notice */}
+      <div style={{
+        background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.2)',
+        borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: 20,
+      }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', letterSpacing: 1, marginBottom: 10 }}>🛡 WHAT THE AGENT DOES & DOES NOT DO</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {[
+            { ok: true,  text: 'Scans devices on your local network (192.168.x.x)' },
+            { ok: true,  text: 'Checks open ports on discovered devices' },
+            { ok: true,  text: 'Sends scan results to your NetGuard account only' },
+            { ok: true,  text: '100% open source — you can read every line' },
+            { ok: false, text: 'Does NOT install anything on your machine' },
+            { ok: false, text: 'Does NOT access your files, browser, or passwords' },
+            { ok: false, text: 'Does NOT run in the background unless you use --watch' },
+            { ok: false, text: 'Does NOT share data with any third party' },
+          ].map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+              <span style={{ color: item.ok ? 'var(--green)' : 'var(--red)', flexShrink: 0, marginTop: 1 }}>{item.ok ? '✓' : '✗'}</span>
+              {item.text}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Consent + Download */}
+      <div className="card" style={{ padding: '20px 24px' }}>
+        <div className="card-title" style={{ marginBottom: 16 }}>DOWNLOAD AGENT</div>
+
+        {/* Checkbox */}
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', marginBottom: 20 }}>
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={e => setAgreed(e.target.checked)}
+            style={{ marginTop: 2, accentColor: 'var(--green)', width: 15, height: 15, flexShrink: 0 }}
+          />
+          <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+            I understand that this is an open-source script that only scans my local network and sends results
+            to my NetGuard account. It does not harm my machine, does not collect personal data, and does not
+            run in the background unless I explicitly start it.
+          </span>
+        </label>
+
+        {/* Download buttons */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button
+            className="btn-primary"
+            disabled={!agreed}
+            onClick={() => downloadFile(AGENT_URL, 'agent.py')}
+            style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            ↓ DOWNLOAD agent.py
+          </button>
+          <button
+            className="btn-ghost"
+            disabled={!agreed}
+            onClick={() => downloadFile(REQUIREMENTS_URL, 'requirements.txt')}
+            style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            ↓ DOWNLOAD requirements.txt
+          </button>
+          <a
+            href="https://github.com/kamikaz-tn/netguard/tree/main/agent"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+          >
+            ↗ VIEW SOURCE ON GITHUB
+          </a>
+        </div>
+
+        {!agreed && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 10, letterSpacing: 1 }}>
+            ↑ Check the box above to enable download
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
