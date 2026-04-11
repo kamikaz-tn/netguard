@@ -32,8 +32,8 @@ const STEPS = [
   },
 ]
 
-const AGENT_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/main/agent/agent.py'
-const REQUIREMENTS_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/main/agent/requirements.txt'
+const AGENT_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/refs/heads/main/agent/agent.py'
+const REQUIREMENTS_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/refs/heads/main/agent/requirements.txt'
 
 export default function AgentSetup() {
   const navigate = useNavigate()
