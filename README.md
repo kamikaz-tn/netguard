@@ -62,7 +62,7 @@ to the backend. This is the same architecture used by tools like Nessus and Qual
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/yourusername/netguard
+git clone https://github.com/kamikaz-tn/netguard
 cd netguard
 ```
 
