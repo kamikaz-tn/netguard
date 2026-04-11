@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { auth } from '../services/api.js'
  
@@ -13,12 +13,19 @@ const NAV = [
  
 export default function Layout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [time, setTime] = useState(new Date())
+  const [sidebarOpen, setSidebarOpen] = useState(false)
  
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
+ 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
  
   function handleLogout() {
     auth.logout()
@@ -34,11 +41,20 @@ export default function Layout() {
     } catch { return 'user' }
   })()
  
+  // Current page label for mobile topbar
+  const currentNav = NAV.find(n => n.to === location.pathname)
+ 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
  
+      {/* Mobile overlay */}
+      <div
+        className={`mobile-overlay ${sidebarOpen ? 'open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+ 
       {/* Sidebar */}
-      <aside style={{
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} style={{
         width: 220,
         background: 'var(--surface)',
         borderRight: '1px solid var(--border)',
@@ -107,10 +123,57 @@ export default function Layout() {
         </div>
       </aside>
  
-      {/* Main content */}
-      <main style={{ flex: 1, overflow: 'auto', padding: 24 }}>
-        <Outlet />
-      </main>
+      {/* Right side wrapper */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+ 
+        {/* Mobile top bar */}
+        <div className="mobile-topbar" style={{
+          display: 'none', // overridden to flex by media query
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 16px',
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+        }}>
+          {/* Hamburger */}
+          <button
+            className="hamburger"
+            onClick={() => setSidebarOpen(o => !o)}
+            style={{
+              background: 'none',
+              border: '1px solid var(--border2)',
+              borderRadius: 'var(--radius)',
+              color: 'var(--green)',
+              fontSize: 18,
+              padding: '4px 10px',
+              lineHeight: 1,
+              letterSpacing: 0,
+            }}
+          >
+            ☰
+          </button>
+ 
+          {/* Page title */}
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--green)', letterSpacing: 2 }}>
+            {currentNav ? `${currentNav.icon} ${currentNav.label.toUpperCase()}` : 'NETGUARD'}
+          </div>
+ 
+          {/* Logout shortcut */}
+          <button
+            className="btn-ghost"
+            style={{ fontSize: 9, padding: '4px 10px' }}
+            onClick={handleLogout}
+          >
+            EXIT
+          </button>
+        </div>
+ 
+        {/* Main content */}
+        <main className="main-content" style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

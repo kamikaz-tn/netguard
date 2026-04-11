@@ -53,7 +53,8 @@ export default function Overview() {
  
   return (
     <div className="animate-in">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      {/* Page header */}
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--text)', letterSpacing: 2 }}>NETWORK OVERVIEW</h1>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
@@ -63,7 +64,7 @@ export default function Overview() {
         <button
           className="btn-primary"
           onClick={() => navigate('/agent-setup')}
-          style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}
         >
           ▶ RUN SCAN
         </button>
@@ -71,7 +72,7 @@ export default function Overview() {
  
       {/* No scan yet — prompt */}
       {!latestScan && (
-        <div style={{
+        <div className="no-scan-banner" style={{
           background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.15)',
           borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: 20,
           fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)',
@@ -81,29 +82,30 @@ export default function Overview() {
           <button
             className="btn-ghost"
             onClick={() => navigate('/agent-setup')}
-            style={{ fontSize: 9, padding: '4px 12px' }}
+            style={{ fontSize: 9, padding: '4px 12px', whiteSpace: 'nowrap', marginTop: 0 }}
           >
             HOW TO SCAN →
           </button>
         </div>
       )}
  
-      {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      {/* Stat cards — 4 col desktop, 2 col mobile */}
+      <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
         <StatCard label="Devices Found"  value={latestScan?.hosts_up ?? '—'}       color="var(--blue)"  sub={latestScan?.network_range} />
         <StatCard label="Open Ports"     value={latestScan?.total_ports ?? '—'}     color="var(--amber)" sub="across all hosts" />
         <StatCard label="Threats"        value={latestScan?.threats_found ?? '—'}   color="var(--red)"   sub="critical findings" />
         <StatCard label="Risk Score"     value={latestScan?.risk_score ?? '—'}      color={latestScan?.risk_score >= 70 ? 'var(--red)' : latestScan?.risk_score >= 40 ? 'var(--amber)' : 'var(--green)'} sub="out of 100" />
       </div>
  
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {/* Two-col grid — stacks on mobile */}
+      <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {/* Risk assessment */}
         <div className="card">
           <div className="card-title">Risk Assessment</div>
           {latestScan ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div className="risk-inner" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <RiskRing score={Math.round(latestScan.risk_score)} />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, width: '100%' }}>
                 {[
                   { label: 'Threats Found', val: latestScan.threats_found, max: 10 },
                   { label: 'Open Ports', val: latestScan.total_ports, max: 50 },
@@ -134,8 +136,8 @@ export default function Overview() {
             latestScan.findings.slice(0, 5).map((f, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 4, flexShrink: 0, background: f.severity === 'critical' ? 'var(--red)' : f.severity === 'high' ? 'var(--amber)' : 'var(--green)' }} />
-                <div style={{ flex: 1, fontSize: 12, lineHeight: 1.5 }}>{f.description?.slice(0, 80)}...</div>
-                <span className={`badge badge-${f.severity === 'critical' || f.severity === 'high' ? 'danger' : 'warning'}`}>{f.severity}</span>
+                <div style={{ flex: 1, fontSize: 12, lineHeight: 1.5, minWidth: 0, wordBreak: 'break-word' }}>{f.description?.slice(0, 80)}...</div>
+                <span className={`badge badge-${f.severity === 'critical' || f.severity === 'high' ? 'danger' : 'warning'}`} style={{ flexShrink: 0 }}>{f.severity}</span>
               </div>
             ))
           ) : (

@@ -1,5 +1,5 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+ 
 :root {
   --bg: #0a0e0f;
   --surface: #0f1517;
@@ -20,7 +20,7 @@
   --font: 'Rajdhani', sans-serif;
   --radius: 6px;
 }
-
+ 
 html, body, #root {
   height: 100%;
   background: var(--bg);
@@ -29,16 +29,16 @@ html, body, #root {
   font-size: 15px;
   line-height: 1.6;
 }
-
+ 
 body {
   background-image:
     repeating-linear-gradient(0deg, transparent, transparent 39px, #1a262720 40px),
     repeating-linear-gradient(90deg, transparent, transparent 39px, #1a262720 40px);
 }
-
+ 
 a { color: var(--green); text-decoration: none; }
 a:hover { text-decoration: underline; }
-
+ 
 button {
   cursor: pointer;
   font-family: var(--font-mono);
@@ -49,9 +49,9 @@ button {
   transition: all 0.15s;
   border: 1px solid transparent;
 }
-
+ 
 button:active { transform: scale(0.97); }
-
+ 
 .btn-primary {
   background: var(--green-dim);
   border-color: var(--green);
@@ -59,7 +59,7 @@ button:active { transform: scale(0.97); }
   padding: 10px 20px;
 }
 .btn-primary:hover { background: rgba(0,200,136,0.2); }
-
+ 
 .btn-danger {
   background: var(--red-dim);
   border-color: var(--red);
@@ -67,7 +67,7 @@ button:active { transform: scale(0.97); }
   padding: 6px 12px;
 }
 .btn-danger:hover { background: rgba(255,34,34,0.2); }
-
+ 
 .btn-ghost {
   background: transparent;
   border-color: var(--border2);
@@ -75,7 +75,7 @@ button:active { transform: scale(0.97); }
   padding: 6px 12px;
 }
 .btn-ghost:hover { color: var(--text); border-color: var(--text); }
-
+ 
 input, textarea {
   background: #060a0b;
   border: 1px solid var(--border2);
@@ -90,14 +90,14 @@ input, textarea {
 }
 input:focus, textarea:focus { border-color: var(--green); }
 input::placeholder { color: var(--muted); }
-
+ 
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
 }
-
+ 
 .card-title {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -115,7 +115,7 @@ input::placeholder { color: var(--muted); }
   height: 1px;
   background: var(--border);
 }
-
+ 
 .badge {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -129,14 +129,14 @@ input::placeholder { color: var(--muted); }
 .badge-danger  { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(255,68,68,0.3); }
 .badge-warning { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); }
 .badge-info    { background: rgba(79,195,247,0.1); color: var(--blue); border: 1px solid rgba(79,195,247,0.3); }
-
+ 
 .mono { font-family: var(--font-mono); }
 .muted { color: var(--muted); }
 .text-green  { color: var(--green); }
 .text-red    { color: var(--red); }
 .text-amber  { color: var(--amber); }
 .text-blue   { color: var(--blue); }
-
+ 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
@@ -151,16 +151,16 @@ input::placeholder { color: var(--muted); }
   51%  { transform: scaleX(1); transform-origin: right; }
   100% { transform: scaleX(0); transform-origin: right; }
 }
-
+ 
 .animate-in { animation: fadeIn 0.3s ease forwards; }
-
+ 
 .scan-bar {
   height: 2px;
   background: var(--green);
   border-radius: 2px;
   animation: scanLine 1.5s ease-in-out infinite;
 }
-
+ 
 .spinner {
   width: 16px; height: 16px;
   border: 2px solid var(--border2);
@@ -170,3 +170,117 @@ input::placeholder { color: var(--muted); }
   display: inline-block;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+ 
+/* ── Mobile nav overlay ─────────────────────────────────── */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 99;
+}
+ 
+/* ── Responsive table wrapper ───────────────────────────── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+ 
+/* ── Device card view for mobile ────────────────────────── */
+.device-card-mobile {
+  display: none;
+}
+ 
+/* ════════════════════════════════════════════════════════
+   MOBILE  ≤ 768px
+   ════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+ 
+  /* Show overlay when sidebar open */
+  .mobile-overlay.open { display: block; }
+ 
+  /* Sidebar — slides in from left */
+  .sidebar {
+    position: fixed !important;
+    left: -100% !important;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    width: 240px !important;
+    transition: left 0.25s ease;
+  }
+  .sidebar.open {
+    left: 0 !important;
+  }
+ 
+  /* Hamburger button */
+  .hamburger {
+    display: flex !important;
+  }
+ 
+  /* Main content full width */
+  .main-content {
+    padding: 16px !important;
+  }
+ 
+  /* Mobile top bar */
+  .mobile-topbar {
+    display: flex !important;
+  }
+ 
+  /* Stat grid: 2×2 on mobile */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+ 
+  /* Two-col grid → single col */
+  .two-col-grid {
+    grid-template-columns: 1fr !important;
+  }
+ 
+  /* Page header stack on mobile */
+  .page-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+ 
+  /* Desktop table hidden, cards shown */
+  .devices-table { display: none !important; }
+  .device-card-mobile { display: block !important; }
+ 
+  /* Overview no-scan banner */
+  .no-scan-banner {
+    flex-direction: column !important;
+    gap: 10px !important;
+    align-items: flex-start !important;
+  }
+ 
+  /* Smaller headings */
+  h1 { font-size: 15px !important; }
+ 
+  /* Card padding reduction */
+  .card { padding: 14px !important; }
+ 
+  /* Risk ring + bars stack vertically */
+  .risk-inner {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 16px !important;
+  }
+}
+ 
+/* ════════════════════════════════════════════════════════
+   TABLET  769px – 1024px
+   ════════════════════════════════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1024px) {
+ 
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+ 
+  .sidebar {
+    width: 180px !important;
+  }
+}
