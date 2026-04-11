@@ -1,0 +1,63 @@
+version: "3.9"
+
+# ════════════════════════════════════════════════════════════════════════════
+# NetGuard — Full Stack Docker Compose
+#
+# Services:
+#   backend   — FastAPI + SQLite
+#   frontend  — React (Vite dev server)
+#
+# Usage:
+#   docker compose up --build          # start everything
+#   docker compose up backend          # backend only
+#   docker compose logs -f backend     # tail backend logs
+#
+# NOTE: The local agent runs OUTSIDE Docker (on your machine)
+#       because it needs raw LAN access for ARP scanning.
+# ════════════════════════════════════════════════════════════════════════════
+
+services:
+
+  # ── FastAPI Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: netguard-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=AIzaSyC65e79n7xg7YOzXVEKDxpwd7yBXK4ac6g   # reads from shell or .env
+      - SECRET_KEY=netguard_super_secret_key_2026
+      - DATABASE_URL=sqlite+aiosqlite:///./data/netguard.db
+      - FRONTEND_ORIGIN=http://localhost:5173
+      - AGENT_SECRET=netguard_agent_secret_2026
+    volumes:
+      - ./backend:/app
+      - netguard-db:/app/datadocker compose up --build backend
+    
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+
+  # ── React Frontend ───────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: netguard-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules        # don't overwrite container's node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  netguard-db:
+    driver: local

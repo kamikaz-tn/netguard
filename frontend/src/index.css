@@ -1,0 +1,172 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0e0f;
+  --surface: #0f1517;
+  --surface2: #141c1e;
+  --border: #1e2d2f;
+  --border2: #2a4245;
+  --green: #00e5a0;
+  --green-dim: rgba(0,200,136,0.12);
+  --green-glow: rgba(0,229,160,0.25);
+  --red: #ff4444;
+  --red-dim: rgba(255,34,34,0.12);
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --blue: #4fc3f7;
+  --text: #c8d8da;
+  --muted: #4a6568;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font: 'Rajdhani', sans-serif;
+  --radius: 6px;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+body {
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 39px, #1a262720 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, #1a262720 40px);
+}
+
+a { color: var(--green); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border-radius: var(--radius);
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+button:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: var(--green);
+  padding: 10px 20px;
+}
+.btn-primary:hover { background: rgba(0,200,136,0.2); }
+
+.btn-danger {
+  background: var(--red-dim);
+  border-color: var(--red);
+  color: var(--red);
+  padding: 6px 12px;
+}
+.btn-danger:hover { background: rgba(255,34,34,0.2); }
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border2);
+  color: var(--muted);
+  padding: 6px 12px;
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--text); }
+
+input, textarea {
+  background: #060a0b;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+input:focus, textarea:focus { border-color: var(--green); }
+input::placeholder { color: var(--muted); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.card-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--green);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.badge-safe    { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,229,160,0.3); }
+.badge-danger  { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(255,68,68,0.3); }
+.badge-warning { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); }
+.badge-info    { background: rgba(79,195,247,0.1); color: var(--blue); border: 1px solid rgba(79,195,247,0.3); }
+
+.mono { font-family: var(--font-mono); }
+.muted { color: var(--muted); }
+.text-green  { color: var(--green); }
+.text-red    { color: var(--red); }
+.text-amber  { color: var(--amber); }
+.text-blue   { color: var(--blue); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scanLine {
+  0%   { transform: scaleX(0); transform-origin: left; }
+  50%  { transform: scaleX(1); transform-origin: left; }
+  51%  { transform: scaleX(1); transform-origin: right; }
+  100% { transform: scaleX(0); transform-origin: right; }
+}
+
+.animate-in { animation: fadeIn 0.3s ease forwards; }
+
+.scan-bar {
+  height: 2px;
+  background: var(--green);
+  border-radius: 2px;
+  animation: scanLine 1.5s ease-in-out infinite;
+}
+
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

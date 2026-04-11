@@ -1,0 +1,1032 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ng-bg: #0a0e0f;
+    --ng-surface: #0f1517;
+    --ng-border: #1e2d2f;
+    --ng-border-bright: #2a4245;
+    --ng-green: #00e5a0;
+    --ng-green-dim: #00c48820;
+    --ng-red: #ff4444;
+    --ng-red-dim: #ff222220;
+    --ng-amber: #f5a623;
+    --ng-amber-dim: #f5a62318;
+    --ng-blue: #4fc3f7;
+    --ng-text: #c8d8da;
+    --ng-muted: #4a6568;
+    --ng-font-mono: 'Share Tech Mono', monospace;
+    --ng-font: 'Rajdhani', sans-serif;
+  }
+
+  .ng-root {
+    background: var(--ng-bg);
+    font-family: var(--ng-font);
+    color: var(--ng-text);
+    min-height: 100vh;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ng-root::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 39px, #1a2627 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, #1a2627 40px);
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .ng-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--ng-border);
+    position: relative;
+    background: var(--ng-surface);
+    z-index: 10;
+  }
+
+  .ng-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ng-logo-icon {
+    width: 32px; height: 32px;
+    border: 2px solid var(--ng-green);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+
+  .ng-logo-icon svg { width: 18px; height: 18px; }
+
+  .ng-logo-text {
+    font-family: var(--ng-font-mono);
+    font-size: 18px;
+    color: var(--ng-green);
+    letter-spacing: 3px;
+  }
+
+  .ng-logo-sub {
+    font-size: 10px;
+    color: var(--ng-muted);
+    font-family: var(--ng-font-mono);
+    letter-spacing: 2px;
+  }
+
+  .ng-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: var(--ng-font-mono);
+    font-size: 11px;
+  }
+
+  .ng-status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ng-muted);
+  }
+
+  .ng-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  .ng-dot.green { background: var(--ng-green); box-shadow: 0 0 6px var(--ng-green); }
+  .ng-dot.red { background: var(--ng-red); box-shadow: 0 0 6px var(--ng-red); animation-delay: 0.5s; }
+  .ng-dot.amber { background: var(--ng-amber); box-shadow: 0 0 6px var(--ng-amber); animation-delay: 1s; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .ng-nav {
+    display: flex;
+    gap: 2px;
+    padding: 12px 24px;
+    background: var(--ng-surface);
+    border-bottom: 1px solid var(--ng-border);
+    position: relative;
+    z-index: 10;
+  }
+
+  .ng-tab {
+    font-family: var(--ng-font-mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    padding: 7px 16px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ng-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    border-radius: 4px;
+  }
+
+  .ng-tab:hover { color: var(--ng-text); border-color: var(--ng-border-bright); }
+  .ng-tab.active {
+    color: var(--ng-green);
+    border-color: var(--ng-green);
+    background: var(--ng-green-dim);
+  }
+
+  .ng-content {
+    padding: 20px 24px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .ng-page { display: none; }
+  .ng-page.active { display: block; }
+
+  .ng-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .ng-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .ng-card {
+    background: var(--ng-surface);
+    border: 1px solid var(--ng-border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+
+  .ng-stat-card {
+    background: var(--ng-surface);
+    border: 1px solid var(--ng-border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+
+  .ng-stat-label {
+    font-family: var(--ng-font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--ng-muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .ng-stat-value {
+    font-family: var(--ng-font-mono);
+    font-size: 28px;
+    line-height: 1;
+    color: var(--ng-green);
+  }
+
+  .ng-stat-value.red { color: var(--ng-red); }
+  .ng-stat-value.amber { color: var(--ng-amber); }
+  .ng-stat-value.blue { color: var(--ng-blue); }
+
+  .ng-stat-sub {
+    font-size: 11px;
+    color: var(--ng-muted);
+    margin-top: 4px;
+  }
+
+  .ng-card-title {
+    font-family: var(--ng-font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--ng-green);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ng-card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--ng-border);
+  }
+
+  .ng-device-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ng-border);
+    font-size: 13px;
+  }
+
+  .ng-device-row:last-child { border-bottom: none; }
+
+  .ng-device-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .ng-device-icon.safe { background: var(--ng-green-dim); border: 1px solid var(--ng-green)30; }
+  .ng-device-icon.danger { background: var(--ng-red-dim); border: 1px solid var(--ng-red)30; }
+  .ng-device-icon.unknown { background: var(--ng-amber-dim); border: 1px solid var(--ng-amber)30; }
+
+  .ng-device-info { flex: 1; min-width: 0; }
+  .ng-device-name { color: var(--ng-text); font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ng-device-ip { font-family: var(--ng-font-mono); font-size: 10px; color: var(--ng-muted); }
+
+  .ng-badge {
+    font-family: var(--ng-font-mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  .ng-badge.safe { background: var(--ng-green-dim); color: var(--ng-green); border: 1px solid var(--ng-green)40; }
+  .ng-badge.danger { background: var(--ng-red-dim); color: var(--ng-red); border: 1px solid var(--ng-red)40; }
+  .ng-badge.unknown { background: var(--ng-amber-dim); color: var(--ng-amber); border: 1px solid var(--ng-amber)40; }
+
+  .ng-action-btn {
+    font-family: var(--ng-font-mono);
+    font-size: 10px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .ng-btn-kick {
+    background: var(--ng-red-dim);
+    border: 1px solid var(--ng-red)50;
+    color: var(--ng-red);
+  }
+
+  .ng-btn-kick:hover { background: #ff222235; }
+
+  .ng-btn-trust {
+    background: var(--ng-green-dim);
+    border: 1px solid var(--ng-green)50;
+    color: var(--ng-green);
+  }
+
+  .ng-btn-trust:hover { background: #00c48830; }
+
+  .ng-btn-scan {
+    font-family: var(--ng-font-mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 10px 24px;
+    background: var(--ng-green-dim);
+    border: 1px solid var(--ng-green);
+    color: var(--ng-green);
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ng-btn-scan:hover { background: #00c48835; }
+
+  .ng-btn-primary {
+    font-family: var(--ng-font-mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 10px 20px;
+    background: var(--ng-green-dim);
+    border: 1px solid var(--ng-green);
+    color: var(--ng-green);
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .ng-btn-primary:hover { background: #00c48835; }
+
+  .ng-port-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--ng-border);
+    font-family: var(--ng-font-mono);
+    font-size: 11px;
+  }
+
+  .ng-port-row:last-child { border-bottom: none; }
+
+  .ng-port-num {
+    width: 50px;
+    color: var(--ng-blue);
+  }
+
+  .ng-port-service { flex: 1; color: var(--ng-text); font-size: 12px; font-family: var(--ng-font); }
+  .ng-port-host { width: 90px; color: var(--ng-muted); font-size: 10px; }
+
+  .ng-risk-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .ng-risk-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: var(--ng-border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .ng-risk-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+
+  .ng-terminal {
+    font-family: var(--ng-font-mono);
+    font-size: 11px;
+    background: #060a0b;
+    border: 1px solid var(--ng-border);
+    border-radius: 6px;
+    padding: 14px;
+    max-height: 160px;
+    overflow-y: auto;
+    line-height: 1.8;
+  }
+
+  .ng-terminal .t-green { color: var(--ng-green); }
+  .ng-terminal .t-red { color: var(--ng-red); }
+  .ng-terminal .t-amber { color: var(--ng-amber); }
+  .ng-terminal .t-muted { color: var(--ng-muted); }
+  .ng-terminal .t-blue { color: var(--ng-blue); }
+
+  .ng-pwd-input-wrap {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .ng-input {
+    flex: 1;
+    background: #060a0b;
+    border: 1px solid var(--ng-border-bright);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-family: var(--ng-font-mono);
+    font-size: 13px;
+    color: var(--ng-text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .ng-input:focus { border-color: var(--ng-green); }
+
+  .ng-pwned-result {
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  .ng-pwned-result.safe {
+    background: var(--ng-green-dim);
+    border: 1px solid var(--ng-green)40;
+  }
+
+  .ng-pwned-result.danger {
+    background: var(--ng-red-dim);
+    border: 1px solid var(--ng-red)40;
+  }
+
+  .ng-pwned-title {
+    font-family: var(--ng-font-mono);
+    font-size: 13px;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .ng-pwned-sub {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+
+  .ng-chat-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 400px;
+  }
+
+  .ng-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ng-msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .ng-msg.bot {
+    background: var(--ng-surface);
+    border: 1px solid var(--ng-border);
+    color: var(--ng-text);
+    align-self: flex-start;
+  }
+
+  .ng-msg.user {
+    background: var(--ng-green-dim);
+    border: 1px solid var(--ng-green)40;
+    color: var(--ng-green);
+    align-self: flex-end;
+    font-family: var(--ng-font-mono);
+    font-size: 12px;
+  }
+
+  .ng-msg-label {
+    font-family: var(--ng-font-mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--ng-muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+
+  .ng-chat-input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .ng-typing {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  .ng-typing span {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--ng-green);
+    animation: blink 1.2s infinite;
+  }
+
+  .ng-typing span:nth-child(2) { animation-delay: 0.2s; }
+  .ng-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
+
+  .ng-risk-score-ring {
+    width: 100px; height: 100px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .ng-risk-score-ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+
+  .ng-risk-score-inner {
+    font-family: var(--ng-font-mono);
+    text-align: center;
+    z-index: 1;
+  }
+
+  .ng-risk-score-num { font-size: 26px; color: var(--ng-amber); }
+  .ng-risk-score-lbl { font-size: 9px; color: var(--ng-muted); letter-spacing: 1px; }
+
+  .scan-line {
+    width: 100%;
+    height: 2px;
+    background: var(--ng-green);
+    opacity: 0;
+    position: relative;
+    overflow: hidden;
+    border-radius: 2px;
+    margin: 8px 0;
+  }
+
+  .scan-line.scanning {
+    animation: scanAnim 1.5s ease-in-out infinite;
+    opacity: 1;
+  }
+
+  @keyframes scanAnim {
+    0% { transform: scaleX(0); transform-origin: left; }
+    50% { transform: scaleX(1); transform-origin: left; }
+    51% { transform: scaleX(1); transform-origin: right; }
+    100% { transform: scaleX(0); transform-origin: right; }
+  }
+
+  .ng-alert-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ng-border);
+    font-size: 12px;
+  }
+
+  .ng-alert-row:last-child { border-bottom: none; }
+  .ng-alert-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+  .ng-alert-text { flex: 1; color: var(--ng-text); line-height: 1.5; }
+  .ng-alert-time { font-family: var(--ng-font-mono); font-size: 9px; color: var(--ng-muted); white-space: nowrap; }
+</style>
+
+<div class="ng-root">
+  <div class="ng-header">
+    <div class="ng-logo">
+      <div class="ng-logo-icon">
+        <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 1L2 4.5V9C2 12.5 5.2 15.7 9 17C12.8 15.7 16 12.5 16 9V4.5L9 1Z" stroke="#00e5a0" stroke-width="1.5" fill="none"/>
+          <path d="M6 9L8 11L12 7" stroke="#00e5a0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="ng-logo-text">NETGUARD</div>
+        <div class="ng-logo-sub">NETWORK SECURITY MONITOR</div>
+      </div>
+    </div>
+    <div class="ng-status-bar">
+      <div class="ng-status-item"><div class="ng-dot green"></div>AGENT ONLINE</div>
+      <div class="ng-status-item"><div class="ng-dot red"></div>2 THREATS</div>
+      <div class="ng-status-item"><div class="ng-dot amber"></div>1 UNKNOWN</div>
+      <div class="ng-status-item" style="color: var(--ng-muted);">192.168.1.0/24</div>
+    </div>
+  </div>
+
+  <div class="ng-nav">
+    <button class="ng-tab active" onclick="switchTab('overview')">// Overview</button>
+    <button class="ng-tab" onclick="switchTab('devices')">// Devices</button>
+    <button class="ng-tab" onclick="switchTab('ports')">// Port Scan</button>
+    <button class="ng-tab" onclick="switchTab('password')">// Pwned Check</button>
+    <button class="ng-tab" onclick="switchTab('ai')">// AI Advisor</button>
+  </div>
+
+  <div class="ng-content">
+
+    <!-- OVERVIEW -->
+    <div class="ng-page active" id="page-overview">
+      <div class="ng-grid-4" style="margin-bottom:20px">
+        <div class="ng-stat-card">
+          <div class="ng-stat-label">Devices Found</div>
+          <div class="ng-stat-value blue">8</div>
+          <div class="ng-stat-sub">on 192.168.1.x</div>
+        </div>
+        <div class="ng-stat-card">
+          <div class="ng-stat-label">Open Ports</div>
+          <div class="ng-stat-value amber">23</div>
+          <div class="ng-stat-sub">across all hosts</div>
+        </div>
+        <div class="ng-stat-card">
+          <div class="ng-stat-label">Threats</div>
+          <div class="ng-stat-value red">2</div>
+          <div class="ng-stat-sub">critical findings</div>
+        </div>
+        <div class="ng-stat-card">
+          <div class="ng-stat-label">Network Score</div>
+          <div class="ng-stat-value amber">62</div>
+          <div class="ng-stat-sub">needs attention</div>
+        </div>
+      </div>
+
+      <div class="ng-grid-2">
+        <div class="ng-card">
+          <div class="ng-card-title">Risk Assessment</div>
+          <div style="display:flex; align-items:center; gap:20px; margin-bottom:16px;">
+            <div class="ng-risk-score-ring">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#1e2d2f" stroke-width="8"/>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#f5a623" stroke-width="8"
+                  stroke-dasharray="264" stroke-dashoffset="100" stroke-linecap="round"/>
+              </svg>
+              <div class="ng-risk-score-inner">
+                <div class="ng-risk-score-num">62</div>
+                <div class="ng-risk-score-lbl">RISK</div>
+              </div>
+            </div>
+            <div style="flex:1">
+              <div style="margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+                  <span style="color:var(--ng-muted);font-family:var(--ng-font-mono);">OPEN PORTS</span>
+                  <span style="color:var(--ng-amber);font-family:var(--ng-font-mono);">MEDIUM</span>
+                </div>
+                <div class="ng-risk-bar-bg"><div class="ng-risk-bar-fill" style="width:65%;background:var(--ng-amber);"></div></div>
+              </div>
+              <div style="margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+                  <span style="color:var(--ng-muted);font-family:var(--ng-font-mono);">BACKDOOR RISK</span>
+                  <span style="color:var(--ng-red);font-family:var(--ng-font-mono);">HIGH</span>
+                </div>
+                <div class="ng-risk-bar-bg"><div class="ng-risk-bar-fill" style="width:80%;background:var(--ng-red);"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+                  <span style="color:var(--ng-muted);font-family:var(--ng-font-mono);">DEVICE TRUST</span>
+                  <span style="color:var(--ng-green);font-family:var(--ng-font-mono);">GOOD</span>
+                </div>
+                <div class="ng-risk-bar-bg"><div class="ng-risk-bar-fill" style="width:75%;background:var(--ng-green);"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="scan-line scanning"></div>
+          <button class="ng-btn-scan" onclick="sendPrompt('Run a full network scan on my 192.168.1.0/24 network and explain what you find')">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#00e5a0" stroke-width="1.5"/><path d="M6 3v3l2 1" stroke="#00e5a0" stroke-width="1.5" stroke-linecap="round"/></svg>
+            RUN SCAN
+          </button>
+        </div>
+
+        <div class="ng-card">
+          <div class="ng-card-title">Recent Alerts</div>
+          <div class="ng-alert-row">
+            <div class="ng-alert-dot" style="background:var(--ng-red)"></div>
+            <div class="ng-alert-text">Port 4444 open on 192.168.1.14 — potential Metasploit backdoor</div>
+            <div class="ng-alert-time">2m ago</div>
+          </div>
+          <div class="ng-alert-row">
+            <div class="ng-alert-dot" style="background:var(--ng-amber)"></div>
+            <div class="ng-alert-text">Unknown device joined network — MAC: B4:F0:AB:12:33:CC</div>
+            <div class="ng-alert-time">14m ago</div>
+          </div>
+          <div class="ng-alert-row">
+            <div class="ng-alert-dot" style="background:var(--ng-red)"></div>
+            <div class="ng-alert-text">Port 23 (Telnet) open on router — unencrypted protocol detected</div>
+            <div class="ng-alert-time">1h ago</div>
+          </div>
+          <div class="ng-alert-row">
+            <div class="ng-alert-dot" style="background:var(--ng-green)"></div>
+            <div class="ng-alert-text">Scan complete — 8 hosts up, 23 ports analyzed</div>
+            <div class="ng-alert-time">1h ago</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEVICES -->
+    <div class="ng-page" id="page-devices">
+      <div class="ng-grid-2">
+        <div class="ng-card">
+          <div class="ng-card-title">Connected Devices</div>
+          <div class="ng-device-row">
+            <div class="ng-device-icon safe">💻</div>
+            <div class="ng-device-info">
+              <div class="ng-device-name">MacBook Pro — your machine</div>
+              <div class="ng-device-ip">192.168.1.2 · Apple, Inc. · 00:1A:2B:3C:4D:5E</div>
+            </div>
+            <div class="ng-badge safe">Trusted</div>
+          </div>
+          <div class="ng-device-row">
+            <div class="ng-device-icon safe">📱</div>
+            <div class="ng-device-info">
+              <div class="ng-device-name">iPhone 14</div>
+              <div class="ng-device-ip">192.168.1.5 · Apple, Inc. · A4:83:E7:12:56:FF</div>
+            </div>
+            <div class="ng-badge safe">Trusted</div>
+          </div>
+          <div class="ng-device-row">
+            <div class="ng-device-icon safe">📺</div>
+            <div class="ng-device-info">
+              <div class="ng-device-name">Samsung Smart TV</div>
+              <div class="ng-device-ip">192.168.1.8 · Samsung Elec. · 2C:4D:54:AB:CD:12</div>
+            </div>
+            <div class="ng-badge safe">Trusted</div>
+          </div>
+          <div class="ng-device-row">
+            <div class="ng-device-icon unknown">❓</div>
+            <div class="ng-device-info">
+              <div class="ng-device-name">Unknown Device</div>
+              <div class="ng-device-ip">192.168.1.11 · Realtek Semi. · B4:F0:AB:12:33:CC</div>
+            </div>
+            <div class="ng-badge unknown">Unknown</div>
+            <div style="display:flex;gap:4px;margin-left:6px;">
+              <button class="ng-action-btn ng-btn-trust" onclick="sendPrompt('What is a Realtek semiconductor MAC address device? Could it be dangerous on my network?')">Trust ↗</button>
+              <button class="ng-action-btn ng-btn-kick">Kick</button>
+            </div>
+          </div>
+          <div class="ng-device-row">
+            <div class="ng-device-icon danger">⚠️</div>
+            <div class="ng-device-info">
+              <div class="ng-device-name">Unidentified Linux Host</div>
+              <div class="ng-device-ip">192.168.1.14 · Unknown Vendor · FF:FF:00:AB:12:99</div>
+            </div>
+            <div class="ng-badge danger">Threat</div>
+            <div style="display:flex;gap:4px;margin-left:6px;">
+              <button class="ng-action-btn ng-btn-kick">Kick</button>
+            </div>
+          </div>
+        </div>
+        <div class="ng-card">
+          <div class="ng-card-title">Scan Terminal</div>
+          <div class="ng-terminal">
+            <div><span class="t-green">$</span> <span class="t-muted">arp-scan --localnet</span></div>
+            <div><span class="t-muted">Interface: en0, datalink type: EN10MB</span></div>
+            <div><span class="t-blue">192.168.1.1</span>  <span class="t-muted">a8:9c:ed:d6:11:20  TP-Link Technologies</span></div>
+            <div><span class="t-blue">192.168.1.2</span>  <span class="t-muted">00:1a:2b:3c:4d:5e  Apple, Inc.</span></div>
+            <div><span class="t-blue">192.168.1.5</span>  <span class="t-muted">a4:83:e7:12:56:ff  Apple, Inc.</span></div>
+            <div><span class="t-blue">192.168.1.8</span>  <span class="t-muted">2c:4d:54:ab:cd:12  Samsung Electronics</span></div>
+            <div><span class="t-amber">192.168.1.11</span> <span class="t-amber">b4:f0:ab:12:33:cc  Realtek Semiconductor</span>  <span class="t-amber">[UNKNOWN]</span></div>
+            <div><span class="t-red">192.168.1.14</span> <span class="t-red">ff:ff:00:ab:12:99  (Unknown)</span>  <span class="t-red">[THREAT DETECTED]</span></div>
+            <div><span class="t-green">8 hosts found. Scan complete.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PORT SCAN -->
+    <div class="ng-page" id="page-ports">
+      <div class="ng-grid-2">
+        <div class="ng-card">
+          <div class="ng-card-title">Open Ports — All Hosts</div>
+          <div class="ng-port-row" style="border-bottom:1px solid var(--ng-border-bright);margin-bottom:4px;padding-bottom:6px;">
+            <span style="width:50px;font-family:var(--ng-font-mono);font-size:10px;color:var(--ng-muted);">PORT</span>
+            <span style="flex:1;font-size:11px;color:var(--ng-muted);font-family:var(--ng-font-mono);">SERVICE</span>
+            <span style="width:90px;font-size:10px;color:var(--ng-muted);font-family:var(--ng-font-mono);">HOST</span>
+            <span style="width:60px;font-size:10px;color:var(--ng-muted);font-family:var(--ng-font-mono);">RISK</span>
+          </div>
+          <div class="ng-port-row">
+            <span class="ng-port-num">80</span>
+            <span class="ng-port-service">HTTP — Web Server</span>
+            <span class="ng-port-host">192.168.1.1</span>
+            <span class="ng-badge unknown">Medium</span>
+          </div>
+          <div class="ng-port-row">
+            <span class="ng-port-num">443</span>
+            <span class="ng-port-service">HTTPS — Secure Web</span>
+            <span class="ng-port-host">192.168.1.1</span>
+            <span class="ng-badge safe">Low</span>
+          </div>
+          <div class="ng-port-row">
+            <span class="ng-port-num" style="color:var(--ng-red)">23</span>
+            <span class="ng-port-service">Telnet — Unencrypted Shell</span>
+            <span class="ng-port-host">192.168.1.1</span>
+            <span class="ng-badge danger">Critical</span>
+          </div>
+          <div class="ng-port-row">
+            <span class="ng-port-num">22</span>
+            <span class="ng-port-service">SSH — Secure Shell</span>
+            <span class="ng-port-host">192.168.1.2</span>
+            <span class="ng-badge unknown">Medium</span>
+          </div>
+          <div class="ng-port-row">
+            <span class="ng-port-num" style="color:var(--ng-red)">4444</span>
+            <span class="ng-port-service">Metasploit Default — Backdoor</span>
+            <span class="ng-port-host">192.168.1.14</span>
+            <span class="ng-badge danger">Critical</span>
+          </div>
+          <div class="ng-port-row">
+            <span class="ng-port-num">8080</span>
+            <span class="ng-port-service">HTTP Alt — Proxy/Dev Server</span>
+            <span class="ng-port-host">192.168.1.14</span>
+            <span class="ng-badge unknown">Medium</span>
+          </div>
+          <div class="ng-port-row">
+            <span class="ng-port-num">445</span>
+            <span class="ng-port-service">SMB — File Sharing</span>
+            <span class="ng-port-host">192.168.1.8</span>
+            <span class="ng-badge unknown">Medium</span>
+          </div>
+        </div>
+        <div class="ng-card">
+          <div class="ng-card-title">Suspicious Ports Reference</div>
+          <div style="font-size:12px;color:var(--ng-muted);margin-bottom:12px;line-height:1.6;">
+            Known backdoor & high-risk ports detected on your network:
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="background:#060a0b;border:1px solid var(--ng-red)30;border-radius:4px;padding:10px 12px;">
+              <div style="font-family:var(--ng-font-mono);color:var(--ng-red);font-size:12px;margin-bottom:4px;">PORT 4444 — ACTIVE ON YOUR NETWORK</div>
+              <div style="font-size:11px;color:var(--ng-muted);line-height:1.6;">Default Metasploit listener port. Commonly used by attackers after exploitation. Presence of this port is a strong indicator of compromise.</div>
+              <button class="ng-action-btn ng-btn-kick" style="margin-top:8px;font-size:9px;" onclick="sendPrompt('Port 4444 is open on device 192.168.1.14 on my network. What does this mean and what should I do?')">Explain this threat ↗</button>
+            </div>
+            <div style="background:#060a0b;border:1px solid var(--ng-red)30;border-radius:4px;padding:10px 12px;">
+              <div style="font-family:var(--ng-font-mono);color:var(--ng-red);font-size:12px;margin-bottom:4px;">PORT 23 (TELNET) — ACTIVE ON ROUTER</div>
+              <div style="font-size:11px;color:var(--ng-muted);line-height:1.6;">Unencrypted remote access. All traffic including passwords sent in plain text. Should be disabled immediately.</div>
+            </div>
+          </div>
+          <button class="ng-btn-primary" onclick="sendPrompt('Explain the risks of having port 4444 and Telnet port 23 open on my network, and give me step by step remediation steps')">Get AI Remediation Guide ↗</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASSWORD CHECKER -->
+    <div class="ng-page" id="page-password">
+      <div class="ng-grid-2">
+        <div class="ng-card">
+          <div class="ng-card-title">Password Breach Check</div>
+          <div style="font-size:12px;color:var(--ng-muted);margin-bottom:16px;line-height:1.7;">
+            Uses the HaveIBeenPwned k-anonymity API. Your password never leaves your device — only a partial SHA-1 hash prefix is sent.
+          </div>
+          <div class="ng-pwd-input-wrap">
+            <input class="ng-input" type="password" id="pwd-input" placeholder="Enter password to check..." />
+            <button class="ng-action-btn ng-btn-trust" style="padding:10px 16px;font-size:11px;" onclick="checkPassword()">CHECK</button>
+          </div>
+          <div style="font-family:var(--ng-font-mono);font-size:10px;color:var(--ng-muted);margin-bottom:8px;">
+            <span style="color:var(--ng-green)">✓</span> SHA-1 partial hash only &nbsp;&nbsp;
+            <span style="color:var(--ng-green)">✓</span> Never stored &nbsp;&nbsp;
+            <span style="color:var(--ng-green)">✓</span> k-anonymity model
+          </div>
+          <div class="ng-pwned-result danger" id="pwd-result-danger">
+            <div class="ng-pwned-title" style="color:var(--ng-red);">⚠ PASSWORD COMPROMISED</div>
+            <div class="ng-pwned-sub" style="color:var(--ng-red);opacity:0.8;" id="pwd-breach-count"></div>
+            <div style="font-size:11px;color:var(--ng-muted);margin-top:8px;line-height:1.6;">This password has appeared in known data breaches. You should change it immediately on any service where you use it.</div>
+            <button class="ng-action-btn ng-btn-kick" style="margin-top:10px;font-size:9px;" onclick="sendPrompt('My password was found in data breaches. What should I do now? Give me a security action plan.')">Get Action Plan ↗</button>
+          </div>
+          <div class="ng-pwned-result safe" id="pwd-result-safe">
+            <div class="ng-pwned-title" style="color:var(--ng-green);">✓ PASSWORD NOT FOUND IN BREACHES</div>
+            <div style="font-size:11px;color:var(--ng-muted);margin-top:6px;line-height:1.6;">This password was not found in known breach databases. Still make sure it's long, unique, and not reused across services.</div>
+          </div>
+        </div>
+        <div class="ng-card">
+          <div class="ng-card-title">How It Works</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <div style="font-family:var(--ng-font-mono);color:var(--ng-green);font-size:18px;flex-shrink:0;width:24px;">1</div>
+              <div style="font-size:12px;color:var(--ng-muted);line-height:1.6;">Your password is hashed locally with SHA-1 in the browser — it never leaves your device as plain text.</div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <div style="font-family:var(--ng-font-mono);color:var(--ng-green);font-size:18px;flex-shrink:0;width:24px;">2</div>
+              <div style="font-size:12px;color:var(--ng-muted);line-height:1.6;">Only the first 5 characters of the hash are sent to the HIBP API — this is called k-anonymity.</div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <div style="font-family:var(--ng-font-mono);color:var(--ng-green);font-size:18px;flex-shrink:0;width:24px;">3</div>
+              <div style="font-size:12px;color:var(--ng-muted);line-height:1.6;">The API returns all hashes starting with those 5 chars. Your browser checks locally if your hash is in that list.</div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <div style="font-family:var(--ng-font-mono);color:var(--ng-green);font-size:18px;flex-shrink:0;width:24px;">4</div>
+              <div style="font-size:12px;color:var(--ng-muted);line-height:1.6;">HIBP never sees your full password or hash — complete privacy preserved.</div>
+            </div>
+          </div>
+          <div style="background:#060a0b;border:1px solid var(--ng-border);border-radius:4px;padding:12px;margin-top:14px;font-family:var(--ng-font-mono);font-size:10px;color:var(--ng-muted);line-height:1.8;">
+            <div><span class="t-green" style="color:var(--ng-green)">hash</span> = SHA1("mypassword")</div>
+            <div><span class="t-green" style="color:var(--ng-green)">prefix</span> = hash[0:5]   <span style="color:var(--ng-muted);">// sent to API</span></div>
+            <div><span class="t-green" style="color:var(--ng-green)">suffix</span> = hash[5:]   <span style="color:var(--ng-muted);">// stays local</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI CHAT -->
+    <div class="ng-page" id="page-ai">
+      <div class="ng-card">
+        <div class="ng-card-title">AI Security Advisor</div>
+        <div class="ng-chat-wrap">
+          <div class="ng-chat-messages" id="chat-messages">
+            <div class="ng-msg bot">
+              <div class="ng-msg-label">NETGUARD AI</div>
+              Hey! I'm your network security advisor. I can explain any threats found in your scan, help you understand what open ports mean, guide you through fixing issues, or answer any cybersecurity questions. What do you want to know?
+            </div>
+          </div>
+          <div class="ng-chat-input-row">
+            <input class="ng-input" type="text" id="chat-input" placeholder="Ask anything about your network security..." onkeydown="if(event.key==='Enter') sendChat()" />
+            <button class="ng-action-btn ng-btn-trust" style="padding:10px 16px;font-size:11px;white-space:nowrap;" onclick="sendChat()">SEND</button>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="ng-action-btn" style="background:transparent;border:1px solid var(--ng-border-bright);color:var(--ng-muted);font-size:9px;" onclick="quickAsk('What does port 4444 being open mean?')">Port 4444?</button>
+            <button class="ng-action-btn" style="background:transparent;border:1px solid var(--ng-border-bright);color:var(--ng-muted);font-size:9px;" onclick="quickAsk('How do I kick a device from my network?')">Kick a device?</button>
+            <button class="ng-action-btn" style="background:transparent;border:1px solid var(--ng-border-bright);color:var(--ng-muted);font-size:9px;" onclick="quickAsk('How do I create a strong password?')">Strong passwords?</button>
+            <button class="ng-action-btn" style="background:transparent;border:1px solid var(--ng-border-bright);color:var(--ng-muted);font-size:9px;" onclick="quickAsk('What is a backdoor and how do I detect one?')">What is a backdoor?</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.ng-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ng-page').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('page-' + tab).classList.add('active');
+}
+
+async function sha1(str) {
+  const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+
+async function checkPassword() {
+  const pwd = document.getElementById('pwd-input').value;
+  if (!pwd) return;
+  document.getElementById('pwd-result-safe').style.display = 'none';
+  document.getElementById('pwd-result-danger').style.display = 'none';
+  const hash = await sha1(pwd);
+  const prefix = hash.slice(0,5);
+  const suffix = hash.slice(5);
+  try {
+    const res = await fetch('https://api.pwnedpasswords.com/range/' + prefix);
+    const text = await res.text();
+    const match = text.split('\n').find(l => l.split(':')[0] === suffix);
+    if (match) {
+      const count = parseInt(match.split(':')[1]).toLocaleString();
+      document.getElementById('pwd-breach-count').textContent = 'Found ' + count + ' times in known breach databases';
+      document.getElementById('pwd-result-danger').style.display = 'block';
+    } else {
+      document.getElementById('pwd-result-safe').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('pwd-result-safe').style.display = 'block';
+    document.getElementById('pwd-result-safe').querySelector('div:last-child').textContent = 'Could not reach HIBP API. Check your connection.';
+  }
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  appendMsg(msg, 'user');
+  const typing = appendTyping();
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You are NetGuard AI, a friendly but sharp network security advisor embedded in a network monitoring dashboard. The user may be a beginner or intermediate in cybersecurity. Keep answers concise, clear, and practical. Avoid unnecessary jargon — explain technical terms when you use them. When relevant, reference that you can see scan results from their network (192.168.1.0/24 with 8 devices, open ports including 4444 and Telnet 23, and threats detected). Be actionable — always end with what the user can do.',
+        messages: [{ role: 'user', content: msg }]
+      })
+    });
+    const data = await res.json();
+    typing.remove();
+    const reply = data.content?.map(b => b.text || '').join('') || 'Sorry, something went wrong.';
+    appendMsg(reply, 'bot');
+  } catch(e) {
+    typing.remove();
+    appendMsg('Could not reach AI service. Make sure you are connected.', 'bot');
+  }
+}
+
+function quickAsk(q) {
+  document.getElementById('chat-input').value = q;
+  sendChat();
+}
+
+function appendMsg(text, role) {
+  const wrap = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'ng-msg ' + role;
+  if (role === 'bot') {
+    const lbl = document.createElement('div');
+    lbl.className = 'ng-msg-label';
+    lbl.textContent = 'NETGUARD AI';
+    div.appendChild(lbl);
+  }
+  const t = document.createElement('div');
+  t.textContent = text;
+  div.appendChild(t);
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const wrap = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'ng-msg bot';
+  div.innerHTML = '<div class="ng-msg-label">NETGUARD AI</div><div class="ng-typing"><span></span><span></span><span></span></div>';
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return div;
+}
+</script>
