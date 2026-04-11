@@ -12,7 +12,7 @@ Swagger UI docs:
 ReDoc docs:
   http://localhost:8000/redoc
 """
-
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -93,4 +93,12 @@ async def root():
         "message": "NetGuard API is running",
         "docs": "/docs",
         "health": "/health",
+    }
+
+@app.get("/debug-env", tags=["System"])
+async def debug_env():
+    return {
+        "gemini_set": bool(os.environ.get("GEMINI_API_KEY")),
+        "gemini_length": len(os.environ.get("GEMINI_API_KEY", "")),
+        "all_keys": [k for k in os.environ.keys() if "GEMINI" in k.upper()]
     }
