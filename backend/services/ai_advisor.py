@@ -7,6 +7,7 @@ so the AI can give specific advice about the user's actual network.
 """
  
 import asyncio
+import os
 from google import genai
 from google.genai import types
 from typing import List, Optional
@@ -21,9 +22,11 @@ _client = None
 def get_client():
     global _client
     if _client is None:
-        _client = genai.Client(api_key=settings.gemini_api_key)
+        api_key = settings.gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not set")
+        _client = genai.Client(api_key=api_key)
     return _client
- 
  
 # ── System prompt builder ──────────────────────────────────────────────────────
 def build_system_prompt(scan_context: Optional[dict] = None) -> str:
