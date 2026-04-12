@@ -18,13 +18,11 @@ function DeviceCard({ device, trustedMacs, onTrust, onKick }) {
       padding: '14px',
       marginBottom: 10,
     }}>
-      {/* Top row: IP + status badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--blue)' }}>{device.ip}</span>
         <span className={`badge ${st.badge}`}>{st.label}</span>
       </div>
  
-      {/* Details grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', marginBottom: 10 }}>
         {[
           { label: 'MAC', val: device.mac || '—' },
@@ -39,7 +37,6 @@ function DeviceCard({ device, trustedMacs, onTrust, onKick }) {
         ))}
       </div>
  
-      {/* Actions */}
       <div style={{ display: 'flex', gap: 8 }}>
         {device.status !== 'trusted' && (
           <button className="btn-ghost" style={{ fontSize: 9, padding: '5px 12px', flex: 1 }}
@@ -61,6 +58,7 @@ export default function Devices() {
   const [trustedMacs, setTrustedMacs] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionMsg, setActionMsg] = useState('')
+  const [scanInfo, setScanInfo] = useState(null)
  
   useEffect(() => { loadData() }, [])
  
@@ -73,22 +71,33 @@ export default function Devices() {
       ])
       const macs = trusted.map(d => d.mac_address.toUpperCase())
       setTrustedMacs(macs)
+ 
       if (history?.length > 0) {
+        setScanInfo(history[0])
         const detail = await scan.detail(history[0].id)
-        const enriched = (detail.devices || []).map(d => ({
+ 
+        // Get ALL devices from scan_data, not just threats
+        const allDevices = detail.devices || []
+ 
+        const enriched = allDevices.map(d => ({
           ...d,
-          status: macs.includes(d.mac?.toUpperCase()) ? 'trusted' : d.status,
+          // Re-apply trust status based on current trusted MACs
+          status: macs.includes(d.mac?.toUpperCase())
+            ? 'trusted'
+            : d.status || 'unknown',
         }))
+ 
         setDeviceList(enriched)
       }
     } catch (err) {
-      console.error(err)
+      console.error('loadData error:', err)
     } finally {
       setLoading(false)
     }
   }
  
   async function handleTrust(mac, label) {
+    if (!mac) return
     try {
       await devicesApi.trust(mac, label)
       setActionMsg(`✓ Device ${mac} marked as trusted`)
@@ -99,6 +108,7 @@ export default function Devices() {
   }
  
   async function handleKick(mac) {
+    if (!mac) return
     try {
       await devicesApi.kick(mac)
       setActionMsg(`✓ Kick command sent for ${mac}`)
@@ -107,6 +117,10 @@ export default function Devices() {
     }
   }
  
+  const threatCount   = deviceList.filter(d => d.status === 'threat').length
+  const unknownCount  = deviceList.filter(d => d.status === 'unknown').length
+  const trustedCount  = deviceList.filter(d => d.status === 'trusted').length
+ 
   return (
     <div className="animate-in">
       {/* Header */}
@@ -114,11 +128,21 @@ export default function Devices() {
         <div>
           <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--text)', letterSpacing: 2 }}>CONNECTED DEVICES</h1>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
-            {deviceList.length} devices detected on network
+            {deviceList.length} devices detected
+            {scanInfo && ` · last scan ${new Date(scanInfo.created_at).toLocaleString()}`}
           </div>
         </div>
         <button className="btn-primary" onClick={loadData}>↻ REFRESH</button>
       </div>
+ 
+      {/* Summary badges */}
+      {deviceList.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <span className="badge badge-danger">{threatCount} Threat{threatCount !== 1 ? 's' : ''}</span>
+          <span className="badge badge-warning">{unknownCount} Unknown</span>
+          <span className="badge badge-safe">{trustedCount} Trusted</span>
+        </div>
+      )}
  
       {actionMsg && (
         <div style={{ background: 'var(--green-dim)', border: '1px solid rgba(0,229,160,0.3)', borderRadius: 'var(--radius)', padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', marginBottom: 16 }}>
@@ -142,7 +166,7 @@ export default function Devices() {
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border2)' }}>
-                    {['IP Address', 'MAC Address', 'Vendor', 'OS Guess', 'Ports', 'Status', 'Actions'].map(h => (
+                    {['IP Address', 'MAC Address', 'Hostname', 'Vendor', 'OS Guess', 'Ports', 'Status', 'Actions'].map(h => (
                       <th key={h} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1.5, padding: '0 12px 10px 0', textAlign: 'left', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -154,6 +178,7 @@ export default function Devices() {
                       <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '12px 12px 12px 0', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--blue)', whiteSpace: 'nowrap' }}>{device.ip}</td>
                         <td style={{ padding: '12px 12px 12px 0', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{device.mac || '—'}</td>
+                        <td style={{ padding: '12px 12px 12px 0', fontSize: 11, color: 'var(--muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{device.hostname || '—'}</td>
                         <td style={{ padding: '12px 12px 12px 0', fontSize: 12 }}>{device.vendor || 'Unknown'}</td>
                         <td style={{ padding: '12px 12px 12px 0', fontSize: 11, color: 'var(--muted)' }}>{device.os_guess || '—'}</td>
                         <td style={{ padding: '12px 12px 12px 0', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{device.ports?.length ?? 0}</td>
@@ -162,14 +187,16 @@ export default function Devices() {
                         </td>
                         <td style={{ padding: '12px 0' }}>
                           <div style={{ display: 'flex', gap: 6 }}>
-                            {device.status !== 'trusted' && (
+                            {device.status !== 'trusted' && device.mac && (
                               <button className="btn-ghost" style={{ fontSize: 9, padding: '4px 10px' }} onClick={() => handleTrust(device.mac, device.vendor)}>
                                 TRUST
                               </button>
                             )}
-                            <button className="btn-danger" style={{ fontSize: 9, padding: '4px 10px' }} onClick={() => handleKick(device.mac)}>
-                              KICK
-                            </button>
+                            {device.mac && (
+                              <button className="btn-danger" style={{ fontSize: 9, padding: '4px 10px' }} onClick={() => handleKick(device.mac)}>
+                                KICK
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
