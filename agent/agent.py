@@ -1,72 +1,62 @@
+
+Copy
+
 #!/usr/bin/env python3
 """
 netguard/agent/agent.py
 ─────────────────────────
 NetGuard Local Agent
-
-This script runs on the USER'S MACHINE (not the server).
-It has access to the local network and does the real scanning.
-Results are sent to the NetGuard backend API.
-
-Why a local agent?
-  A web server can't see your home network — it lives on the internet.
-  This agent runs locally, scans your LAN, and reports findings
-  to the backend which stores them and pushes alerts to your browser.
-
+ 
 Usage:
-  python agent.py --scan                  # run one scan now
-  python agent.py --watch --interval 300  # scan every 5 minutes
+  python agent.py --scan                  # run one scan and exit
+  python agent.py --watch --interval 300  # scan every 5 minutes + poll for kicks
   python agent.py --help                  # show all options
-
+ 
 Requirements:
   pip install requests python-nmap scapy python-dotenv
-  On Linux/Mac: run with sudo for ARP scanning
+  On Linux/Mac: run with sudo
   On Windows: run as Administrator
 """
-
+ 
 import os
 import sys
 import json
 import time
 import socket
-import hashlib
 import argparse
 import logging
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from pathlib import Path
-
-
+ 
 import requests
 from dotenv import load_dotenv
-
-# ── Optional imports (graceful degradation) ────────────────────────────────────
+ 
+# ── Optional imports ───────────────────────────────────────────────────────────
 try:
     import nmap
     NMAP_AVAILABLE = True
 except ImportError:
     NMAP_AVAILABLE = False
     print("⚠️  python-nmap not found. Install with: pip install python-nmap")
-    print("   Port scanning will be disabled.\n")
-
+ 
 try:
-    from scapy.all import ARP, Ether, srp, conf
+    from scapy.all import ARP, Ether, srp, sendp, conf
     SCAPY_AVAILABLE = True
-    conf.verb = 0   # suppress scapy output
+    conf.verb = 0
 except ImportError:
     SCAPY_AVAILABLE = False
     print("⚠️  scapy not found. Install with: pip install scapy")
-    print("   ARP scanning will use ping fallback (less accurate).\n")
-
+ 
 # ── Load config ────────────────────────────────────────────────────────────────
 load_dotenv(Path(__file__).parent / '.env')
-
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+ 
+BACKEND_URL  = os.getenv("BACKEND_URL",  "http://localhost:8000")
 AGENT_SECRET = os.getenv("AGENT_SECRET", "change_this_shared_secret")
-USER_ID = int(os.getenv("USER_ID", "0"))
-NETWORK_RANGE = os.getenv("NETWORK_RANGE", "")   # auto-detect if empty
-SCAN_TYPE = os.getenv("SCAN_TYPE", "full")        # quick | full
-
+USER_ID      = int(os.getenv("USER_ID",  "0"))
+NETWORK_RANGE = os.getenv("NETWORK_RANGE", "")
+SCAN_TYPE    = os.getenv("SCAN_TYPE",    "full")
+ 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -77,27 +67,35 @@ logging.basicConfig(
     ]
 )
 log = logging.getLogger("netguard-agent")
-
-
+ 
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # NETWORK UTILITIES
 # ══════════════════════════════════════════════════════════════════════════════
-
+ 
 def get_local_network() -> str:
-    """Auto-detect the local network range (e.g. 192.168.1.0/24)."""
     try:
-        # Connect to external IP to find our interface
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         local_ip = s.getsockname()[0]
         s.close()
-        # Assume /24 subnet (works for most home routers)
         parts = local_ip.rsplit(".", 1)
         return f"{parts[0]}.0/24"
     except Exception:
         return "192.168.1.0/24"
-
-
+ 
+ 
+def get_local_ip() -> str:
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return ""
+ 
+ 
 VENDOR_MAP = {
     "00:1A:2B": "Apple, Inc.",
     "A4:83:E7": "Apple, Inc.",
@@ -108,7 +106,7 @@ VENDOR_MAP = {
     "00:50:56": "VMware, Inc.",
     "08:00:27": "VirtualBox / Oracle",
 }
-
+ 
 PORT_RISK_DB = {
     21:    {"service": "FTP",         "risk": "high"},
     22:    {"service": "SSH",         "risk": "medium"},
@@ -126,31 +124,30 @@ PORT_RISK_DB = {
     6666:  {"service": "IRC/Malware", "risk": "critical"},
     12345: {"service": "NetBus",      "risk": "critical"},
     31337: {"service": "BackOrifice", "risk": "critical"},
+    54321: {"service": "BO2K",        "risk": "critical"},
 }
-
+ 
 SUSPICIOUS_PORTS = {4444, 31337, 1234, 5555, 9999, 6666, 12345, 54321}
 CRITICAL_PORTS   = {23, 21, 135, 139, 445, 3389, 5900}
-
-
+ 
+ 
 def lookup_vendor(mac: str) -> str:
     if not mac:
         return "Unknown"
     prefix = mac.upper()[:8]
     return VENDOR_MAP.get(prefix, "Unknown Vendor")
-
-
+ 
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # SCANNING
 # ══════════════════════════════════════════════════════════════════════════════
-
+ 
 def arp_scan(network_range: str) -> List[Dict[str, str]]:
-    """Discover live hosts via ARP. Returns [{ip, mac}, ...]."""
     if SCAPY_AVAILABLE:
         return _arp_scan_scapy(network_range)
-    else:
-        return _arp_scan_ping(network_range)
-
-
+    return _arp_scan_ping(network_range)
+ 
+ 
 def _arp_scan_scapy(network_range: str) -> List[Dict[str, str]]:
     log.info(f"ARP scanning {network_range} via Scapy...")
     try:
@@ -166,52 +163,41 @@ def _arp_scan_scapy(network_range: str) -> List[Dict[str, str]]:
     except Exception as e:
         log.error(f"ARP scan error: {e}")
         return []
-
-
+ 
+ 
 def _arp_scan_ping(network_range: str) -> List[Dict[str, str]]:
-    """Ping sweep fallback — no root required but no MAC addresses."""
     import ipaddress
     import subprocess
-
     log.info(f"Ping sweeping {network_range}...")
     network = ipaddress.ip_network(network_range, strict=False)
     hosts = []
-
     for ip in list(network.hosts())[:254]:
         try:
             result = subprocess.run(
                 ["ping", "-c", "1", "-W", "1", str(ip)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             if result.returncode == 0:
                 hosts.append({"ip": str(ip), "mac": ""})
         except Exception:
             pass
-
     log.info(f"Ping sweep found {len(hosts)} hosts")
     return hosts
-
-
+ 
+ 
 def port_scan(ip: str, scan_type: str = "full") -> List[Dict[str, Any]]:
-    """Scan open ports on a host. Returns list of port dicts."""
     if not NMAP_AVAILABLE:
-        log.warning(f"Nmap not available, skipping port scan for {ip}")
         return []
-
     nm = nmap.PortScanner()
     args = "-F --open" if scan_type == "quick" else "-sV --open -T4"
-
     log.info(f"  Port scanning {ip} ({scan_type})...")
     try:
         nm.scan(hosts=ip, arguments=args)
     except Exception as e:
         log.error(f"  Nmap error on {ip}: {e}")
         return []
-
     if ip not in nm.all_hosts():
         return []
-
     ports = []
     for proto in ["tcp", "udp"]:
         if proto not in nm[ip]:
@@ -231,17 +217,16 @@ def port_scan(ip: str, scan_type: str = "full") -> List[Dict[str, Any]]:
                 "is_critical": port_num in CRITICAL_PORTS,
                 "risk_level": risk_info["risk"],
             })
-
     return sorted(ports, key=lambda p: p["port"])
-
-
+ 
+ 
 def resolve_hostname(ip: str) -> str:
     try:
         return socket.gethostbyaddr(ip)[0]
     except Exception:
         return ""
-
-
+ 
+ 
 def guess_os(mac: str, open_ports: List[int]) -> str:
     vendor = lookup_vendor(mac).lower()
     if "apple" in vendor:       return "macOS / iOS"
@@ -252,44 +237,167 @@ def guess_os(mac: str, open_ports: List[int]) -> str:
     if 445 in open_ports:       return "Windows"
     if 22 in open_ports:        return "Linux / Unix"
     return "Unknown"
-
-
+ 
+ 
+# ══════════════════════════════════════════════════════════════════════════════
+# KICK — ARP DEAUTHENTICATION
+# ══════════════════════════════════════════════════════════════════════════════
+ 
+def arp_deauth(target_mac: str, target_ip: str, network_range: str, count: int = 10) -> bool:
+    """
+    Disconnect a device from the network using ARP spoofing.
+ 
+    Sends gratuitous ARP replies to the target device claiming
+    we are the gateway, causing it to lose connectivity.
+ 
+    Requires Scapy + root/Administrator privileges.
+    """
+    if not SCAPY_AVAILABLE:
+        log.error("Scapy is required for ARP deauth. Install with: pip install scapy")
+        return False
+ 
+    # Find gateway IP (first host in network range)
+    try:
+        import ipaddress
+        network = ipaddress.ip_network(network_range, strict=False)
+        gateway_ip = str(list(network.hosts())[0])
+    except Exception:
+        gateway_ip = network_range.rsplit(".", 1)[0] + ".1"
+ 
+    log.info(f"Executing ARP deauth on {target_ip} ({target_mac}), spoofing gateway {gateway_ip}")
+ 
+    try:
+        # Craft ARP reply: tell target that WE are the gateway
+        # This poisons its ARP cache and kills its internet connection
+        packet = Ether(dst=target_mac) / ARP(
+            op=2,            # ARP reply
+            pdst=target_ip,  # send to target
+            hwdst=target_mac,
+            psrc=gateway_ip, # claim to be the gateway
+            # hwsrc defaults to our own MAC — that's the spoof
+        )
+ 
+        log.info(f"Sending {count} ARP deauth packets to {target_ip}...")
+        sendp(packet, count=count, inter=0.1, verbose=False)
+        log.info(f"ARP deauth complete for {target_ip} ({target_mac})")
+        return True
+ 
+    except PermissionError:
+        log.error("ARP deauth requires root/Administrator privileges.")
+        return False
+    except Exception as e:
+        log.error(f"ARP deauth failed: {e}")
+        return False
+ 
+ 
+def resolve_ip_for_mac(target_mac: str, network_range: str) -> Optional[str]:
+    """Run a quick ARP scan to find the current IP of a MAC address."""
+    log.info(f"Resolving IP for MAC {target_mac}...")
+    hosts = _arp_scan_scapy(network_range) if SCAPY_AVAILABLE else []
+    for host in hosts:
+        if host.get("mac", "").upper() == target_mac.upper():
+            return host["ip"]
+    return None
+ 
+ 
+# ══════════════════════════════════════════════════════════════════════════════
+# KICK COMMAND POLLING
+# ══════════════════════════════════════════════════════════════════════════════
+ 
+def poll_and_execute_kicks(network_range: str):
+    """
+    Poll the backend for pending kick commands and execute them.
+    Called on every watch-mode cycle.
+    """
+    if not USER_ID:
+        return
+ 
+    try:
+        url = f"{BACKEND_URL}/api/devices/agent/commands"
+        resp = requests.get(
+            url,
+            params={"agent_secret": AGENT_SECRET, "user_id": USER_ID},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        commands = resp.json().get("commands", [])
+    except Exception as e:
+        log.warning(f"Could not fetch kick commands: {e}")
+        return
+ 
+    if not commands:
+        return
+ 
+    log.info(f"Found {len(commands)} pending kick command(s)")
+ 
+    for cmd in commands:
+        kick_id     = cmd["id"]
+        target_mac  = cmd["mac_address"]
+        target_ip   = cmd.get("target_ip")
+ 
+        log.info(f"Processing kick #{kick_id}: MAC={target_mac}, IP={target_ip or 'unknown'}")
+ 
+        # If no IP provided, try to resolve it via ARP
+        if not target_ip:
+            target_ip = resolve_ip_for_mac(target_mac, network_range)
+            if not target_ip:
+                log.warning(f"Could not find IP for MAC {target_mac} — device may already be offline")
+                _report_kick_result(kick_id, "failed", "Could not resolve IP for target MAC")
+                continue
+ 
+        # Execute the ARP deauth
+        success = arp_deauth(target_mac, target_ip, network_range)
+        status  = "done" if success else "failed"
+        message = "ARP deauth executed successfully" if success else "ARP deauth failed — check permissions"
+ 
+        _report_kick_result(kick_id, status, message)
+ 
+ 
+def _report_kick_result(kick_id: int, status: str, message: str):
+    """Send kick execution result back to the backend."""
+    try:
+        url = f"{BACKEND_URL}/api/devices/agent/kick-result"
+        resp = requests.post(url, json={
+            "agent_secret": AGENT_SECRET,
+            "kick_id": kick_id,
+            "status": status,
+            "message": message,
+        }, timeout=10)
+        resp.raise_for_status()
+        log.info(f"Kick #{kick_id} reported as '{status}'")
+    except Exception as e:
+        log.error(f"Failed to report kick result: {e}")
+ 
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN SCAN PIPELINE
 # ══════════════════════════════════════════════════════════════════════════════
-
+ 
 def run_scan(network_range: str, scan_type: str = "full") -> List[Dict]:
-    """
-    Full scan pipeline:
-    1. ARP discover hosts
-    2. Port scan each host
-    3. Enrich with vendor, OS, risk
-    """
     log.info(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     log.info(f"Starting {scan_type} scan on {network_range}")
     log.info(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
+ 
     raw_hosts = arp_scan(network_range)
     if not raw_hosts:
         log.warning("No hosts found. Check network range and permissions.")
         return []
-
+ 
     devices = []
     for host in raw_hosts:
-        ip = host["ip"]
+        ip  = host["ip"]
         mac = host.get("mac", "").upper()
         vendor = lookup_vendor(mac)
-
+ 
         log.info(f"Scanning {ip} ({vendor or 'unknown vendor'})...")
-
+ 
         ports = port_scan(ip, scan_type)
         open_port_nums = [p["port"] for p in ports]
         hostname = resolve_hostname(ip)
-
-        # Determine threat status from ports
+ 
         has_critical = any(p["risk_level"] == "critical" for p in ports)
         status = "threat" if has_critical else "unknown"
-
+ 
         device = {
             "ip": ip,
             "mac": mac,
@@ -301,52 +409,52 @@ def run_scan(network_range: str, scan_type: str = "full") -> List[Dict]:
             "risk_score": 0.0,
         }
         devices.append(device)
-        log.info(f"  → {len(ports)} open ports, status: {status}")
-
+        log.info(f"  -> {len(ports)} open ports, status: {status}")
+ 
     log.info(f"Scan complete. {len(devices)} devices found.")
     return devices
-
-
+ 
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # BACKEND COMMUNICATION
 # ══════════════════════════════════════════════════════════════════════════════
-
+ 
 def push_to_backend(devices: List[Dict], network_range: str) -> bool:
-    """POST scan results to the NetGuard backend API."""
     if not USER_ID:
-        log.error("USER_ID not set in .env — cannot push to backend")
+        log.error("USER_ID not set in .env")
         return False
-
+ 
     payload = {
         "agent_secret": AGENT_SECRET,
         "user_id": USER_ID,
         "network_range": network_range,
         "devices": devices,
     }
-
+ 
     try:
         url = f"{BACKEND_URL}/api/scan/agent"
         log.info(f"Pushing results to {url}...")
         response = requests.post(url, json=payload, timeout=30)
         response.raise_for_status()
         data = response.json()
-        log.info(f"✅ Backend accepted results: scan ID {data.get('id')}, "
-                 f"risk score {data.get('risk_score')}/100, "
-                 f"{data.get('threats_found')} threats")
+        log.info(
+            f"Backend accepted: scan ID {data.get('id')}, "
+            f"risk score {data.get('risk_score')}/100, "
+            f"{data.get('threats_found')} threats"
+        )
         return True
     except requests.ConnectionError:
-        log.error(f"Cannot connect to backend at {BACKEND_URL}. Is it running?")
+        log.error(f"Cannot connect to backend at {BACKEND_URL}")
         return False
     except requests.HTTPError as e:
         log.error(f"Backend rejected results: {e.response.status_code} — {e.response.text}")
         return False
     except Exception as e:
-        log.error(f"Unexpected error pushing to backend: {e}")
+        log.error(f"Unexpected error: {e}")
         return False
-
-
+ 
+ 
 def save_local(devices: List[Dict], network_range: str):
-    """Save scan results to a local JSON file as backup."""
     filename = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     data = {
         "timestamp": datetime.now().isoformat(),
@@ -355,16 +463,16 @@ def save_local(devices: List[Dict], network_range: str):
     }
     with open(filename, "w") as f:
         json.dump(data, f, indent=2)
-    log.info(f"💾 Results saved locally: {filename}")
-
-
+    log.info(f"Results saved locally: {filename}")
+ 
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # CLI ENTRY POINT
 # ══════════════════════════════════════════════════════════════════════════════
-
+ 
 def main():
     parser = argparse.ArgumentParser(
-        description="NetGuard Local Agent — scans your network and reports to the backend",
+        description="NetGuard Local Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -374,81 +482,83 @@ Examples:
   python agent.py --scan --local-only
         """
     )
-
-    parser.add_argument("--scan", action="store_true",
-                        help="Run a single scan and exit")
-    parser.add_argument("--watch", action="store_true",
-                        help="Run continuously, scanning on interval")
-    parser.add_argument("--interval", type=int, default=300,
-                        help="Seconds between scans in watch mode (default: 300)")
-    parser.add_argument("--range", type=str, default="",
-                        help="Network range to scan (e.g. 192.168.1.0/24). Auto-detected if not set.")
-    parser.add_argument("--type", choices=["quick", "full"], default="full",
-                        help="Scan type: quick (top 100 ports) or full (top 1000 + version detection)")
-    parser.add_argument("--local-only", action="store_true",
-                        help="Save results locally only, don't push to backend")
-    parser.add_argument("--check-env", action="store_true",
-                        help="Check environment and dependencies, then exit")
-
+ 
+    parser.add_argument("--scan",       action="store_true", help="Run a single scan and exit")
+    parser.add_argument("--watch",      action="store_true", help="Run continuously on interval")
+    parser.add_argument("--interval",   type=int, default=300, help="Seconds between scans (default: 300)")
+    parser.add_argument("--range",      type=str, default="", help="Network range (e.g. 192.168.1.0/24)")
+    parser.add_argument("--type",       choices=["quick", "full"], default="full")
+    parser.add_argument("--local-only", action="store_true", help="Save locally, don't push to backend")
+    parser.add_argument("--check-env",  action="store_true", help="Check environment and exit")
+ 
     args = parser.parse_args()
-
-    # ── Environment check ────────────────────────────────────────────────────
+ 
     if args.check_env:
         print("\n=== NetGuard Agent — Environment Check ===\n")
         print(f"Backend URL:    {BACKEND_URL}")
-        print(f"User ID:        {USER_ID or '❌ NOT SET (edit .env)'}")
-        print(f"Agent Secret:   {'✅ Set' if AGENT_SECRET != 'change_this_shared_secret' else '⚠️  Using default — change in .env'}")
-        print(f"Nmap:           {'✅ Available' if NMAP_AVAILABLE else '❌ Not installed (pip install python-nmap)'}")
-        print(f"Scapy:          {'✅ Available' if SCAPY_AVAILABLE else '⚠️  Not installed (pip install scapy) — ping fallback active'}")
-        network = get_local_network()
-        print(f"Detected LAN:   {network}")
-        print()
+        print(f"User ID:        {USER_ID or 'NOT SET'}")
+        print(f"Agent Secret:   {'Set' if AGENT_SECRET != 'change_this_shared_secret' else 'Using default'}")
+        print(f"Nmap:           {'Available' if NMAP_AVAILABLE else 'Not installed'}")
+        print(f"Scapy:          {'Available' if SCAPY_AVAILABLE else 'Not installed'}")
+        print(f"Detected LAN:   {get_local_network()}")
         return
-
-    # ── Determine network range ───────────────────────────────────────────────
-    network = args.range or NETWORK_RANGE or get_local_network()
+ 
+    network   = args.range or NETWORK_RANGE or get_local_network()
     scan_type = args.type or SCAN_TYPE
-
+ 
     print(f"""
 ╔══════════════════════════════════════════╗
-║         NetGuard Local Agent v1.0        ║
+║         NetGuard Local Agent v1.1        ║
 ╚══════════════════════════════════════════╝
   Backend:  {BACKEND_URL}
   Network:  {network}
   Scan:     {scan_type}
   Mode:     {"watch (every " + str(args.interval) + "s)" if args.watch else "single scan"}
+  Kick:     {"enabled (polling backend)" if args.watch else "disabled in single-scan mode"}
 """)
-
-    def do_scan():
+ 
+    def do_cycle():
+        """One full cycle: scan + push + check for kicks."""
         devices = run_scan(network, scan_type)
-        if not devices:
-            return
-
-        if args.local_only:
-            save_local(devices, network)
-        else:
-            success = push_to_backend(devices, network)
-            if not success:
-                log.info("Saving locally as fallback...")
+        if devices:
+            if args.local_only:
                 save_local(devices, network)
-
-    # ── Single scan ───────────────────────────────────────────────────────────
+            else:
+                success = push_to_backend(devices, network)
+                if not success:
+                    save_local(devices, network)
+ 
+        # Always poll for kick commands (even if scan failed)
+        if not args.local_only:
+            poll_and_execute_kicks(network)
+ 
     if args.scan:
-        do_scan()
+        # Single scan mode: scan + push, but also check kicks once
+        devices = run_scan(network, scan_type)
+        if devices:
+            if args.local_only:
+                save_local(devices, network)
+            else:
+                success = push_to_backend(devices, network)
+                if not success:
+                    save_local(devices, network)
+        # Check kicks once in single mode too
+        if not args.local_only:
+            log.info("Checking for pending kick commands...")
+            poll_and_execute_kicks(network)
         return
-
-    # ── Watch mode ────────────────────────────────────────────────────────────
+ 
     if args.watch:
-        log.info(f"Watch mode active — scanning every {args.interval}s. Press Ctrl+C to stop.")
+        log.info(f"Watch mode — scanning every {args.interval}s. Press Ctrl+C to stop.")
         while True:
-            do_scan()
-            log.info(f"Next scan in {args.interval} seconds...")
+            do_cycle()
+            log.info(f"Next cycle in {args.interval}s...")
             time.sleep(args.interval)
         return
-
-    # ── No args ───────────────────────────────────────────────────────────────
+ 
     parser.print_help()
-
-
+ 
+ 
 if __name__ == "__main__":
     main()
+ 

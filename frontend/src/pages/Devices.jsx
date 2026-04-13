@@ -1,33 +1,67 @@
 import { useState, useEffect } from 'react'
 import { scan, devices as devicesApi } from '../services/api.js'
  
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
+ 
 const STATUS_MAP = {
   trusted: { badge: 'badge-safe',    label: 'Trusted' },
   unknown: { badge: 'badge-warning', label: 'Unknown' },
   threat:  { badge: 'badge-danger',  label: 'Threat'  },
 }
  
-// Mobile card for a single device
-function DeviceCard({ device, trustedMacs, onTrust, onKick }) {
+const KICK_STATUS_MAP = {
+  pending: { color: 'var(--amber)', label: '⏳ Kick pending...' },
+  done:    { color: 'var(--green)', label: '✓ Kicked' },
+  failed:  { color: 'var(--red)',   label: '✗ Kick failed' },
+}
+ 
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function kickDevice(macAddress, targetIp) {
+  const token = localStorage.getItem('ng_token')
+  const res = await fetch(`${BASE_URL}/api/devices/kick`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ mac_address: macAddress, target_ip: targetIp || null }),
+  })
+  if (res.status === 409) {
+    const data = await res.json()
+    throw new Error(data.detail || 'Kick already pending')
+  }
+  if (!res.ok) throw new Error('Failed to queue kick')
+  return res.json()
+}
+ 
+async function fetchKicks() {
+  const token = localStorage.getItem('ng_token')
+  const res = await fetch(`${BASE_URL}/api/devices/kicks`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  if (!res.ok) return []
+  return res.json()
+}
+ 
+// ── Mobile card ───────────────────────────────────────────────────────────────
+function DeviceCard({ device, onTrust, onKick, kickStatus }) {
   const st = STATUS_MAP[device.status] || STATUS_MAP.unknown
+  const ks = kickStatus ? KICK_STATUS_MAP[kickStatus] : null
+ 
   return (
     <div style={{
-      background: 'var(--surface2)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      padding: '14px',
-      marginBottom: 10,
+      background: 'var(--surface2)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)', padding: '14px', marginBottom: 10,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--blue)' }}>{device.ip}</span>
         <span className={`badge ${st.badge}`}>{st.label}</span>
       </div>
- 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', marginBottom: 10 }}>
         {[
-          { label: 'MAC', val: device.mac || '—' },
-          { label: 'Vendor', val: device.vendor || 'Unknown' },
-          { label: 'OS', val: device.os_guess || '—' },
+          { label: 'MAC',        val: device.mac || '—' },
+          { label: 'Vendor',     val: device.vendor || 'Unknown' },
+          { label: 'OS',         val: device.os_guess || '—' },
           { label: 'Open Ports', val: device.ports?.length ?? 0 },
         ].map(({ label, val }) => (
           <div key={label}>
@@ -36,57 +70,76 @@ function DeviceCard({ device, trustedMacs, onTrust, onKick }) {
           </div>
         ))}
       </div>
- 
+      {ks && (
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: ks.color, marginBottom: 8 }}>{ks.label}</div>
+      )}
       <div style={{ display: 'flex', gap: 8 }}>
-        {device.status !== 'trusted' && (
+        {device.status !== 'trusted' && device.mac && (
           <button className="btn-ghost" style={{ fontSize: 9, padding: '5px 12px', flex: 1 }}
-            onClick={() => onTrust(device.mac, device.vendor)}>
-            ✓ TRUST
+            onClick={() => onTrust(device.mac, device.vendor)}>✓ TRUST</button>
+        )}
+        {device.mac && (
+          <button
+            className="btn-danger"
+            style={{ fontSize: 9, padding: '5px 12px', flex: 1, opacity: kickStatus === 'pending' ? 0.5 : 1 }}
+            disabled={kickStatus === 'pending'}
+            onClick={() => onKick(device.mac, device.ip)}
+          >
+            {kickStatus === 'pending' ? '⏳ PENDING' : '✕ KICK'}
           </button>
         )}
-        <button className="btn-danger" style={{ fontSize: 9, padding: '5px 12px', flex: 1 }}
-          onClick={() => onKick(device.mac)}>
-          ✕ KICK
-        </button>
       </div>
     </div>
   )
 }
  
+// ── Main component ────────────────────────────────────────────────────────────
 export default function Devices() {
-  const [deviceList, setDeviceList] = useState([])
-  const [trustedMacs, setTrustedMacs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [actionMsg, setActionMsg] = useState('')
-  const [scanInfo, setScanInfo] = useState(null)
+  const [deviceList, setDeviceList]     = useState([])
+  const [trustedMacs, setTrustedMacs]   = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [actionMsg, setActionMsg]       = useState('')
+  const [scanInfo, setScanInfo]         = useState(null)
+  const [kickStatuses, setKickStatuses] = useState({})  // mac → status string
  
   useEffect(() => { loadData() }, [])
+ 
+  // Poll kick statuses every 5s while any kick is pending
+  useEffect(() => {
+    const hasPending = Object.values(kickStatuses).some(s => s === 'pending')
+    if (!hasPending) return
+    const interval = setInterval(refreshKickStatuses, 5000)
+    return () => clearInterval(interval)
+  }, [kickStatuses])
  
   async function loadData() {
     setLoading(true)
     try {
-      const [history, trusted] = await Promise.all([
+      const [history, trusted, kicks] = await Promise.all([
         scan.history(1),
         devicesApi.listTrusted(),
+        fetchKicks(),
       ])
+ 
       const macs = trusted.map(d => d.mac_address.toUpperCase())
       setTrustedMacs(macs)
+ 
+      // Build kick status map: mac → most recent status
+      const ksMap = {}
+      for (const k of kicks) {
+        const mac = k.mac_address.toUpperCase()
+        if (!ksMap[mac]) ksMap[mac] = k.status  // already sorted by created_at desc
+      }
+      setKickStatuses(ksMap)
  
       if (history?.length > 0) {
         setScanInfo(history[0])
         const detail = await scan.detail(history[0].id)
- 
-        // Get ALL devices from scan_data, not just threats
         const allDevices = detail.devices || []
- 
         const enriched = allDevices.map(d => ({
           ...d,
-          // Re-apply trust status based on current trusted MACs
-          status: macs.includes(d.mac?.toUpperCase())
-            ? 'trusted'
-            : d.status || 'unknown',
+          status: macs.includes(d.mac?.toUpperCase()) ? 'trusted' : d.status || 'unknown',
         }))
- 
         setDeviceList(enriched)
       }
     } catch (err) {
@@ -94,6 +147,18 @@ export default function Devices() {
     } finally {
       setLoading(false)
     }
+  }
+ 
+  async function refreshKickStatuses() {
+    try {
+      const kicks = await fetchKicks()
+      const ksMap = {}
+      for (const k of kicks) {
+        const mac = k.mac_address.toUpperCase()
+        if (!ksMap[mac]) ksMap[mac] = k.status
+      }
+      setKickStatuses(ksMap)
+    } catch {}
   }
  
   async function handleTrust(mac, label) {
@@ -107,19 +172,20 @@ export default function Devices() {
     }
   }
  
-  async function handleKick(mac) {
+  async function handleKick(mac, ip) {
     if (!mac) return
     try {
-      await devicesApi.kick(mac)
-      setActionMsg(`✓ Kick command sent for ${mac}`)
+      await kickDevice(mac, ip)
+      setKickStatuses(prev => ({ ...prev, [mac.toUpperCase()]: 'pending' }))
+      setActionMsg(`⏳ Kick queued for ${mac} — agent will execute on next poll`)
     } catch (err) {
-      setActionMsg(`⚠ Error: ${err.message}`)
+      setActionMsg(`⚠ ${err.message}`)
     }
   }
  
-  const threatCount   = deviceList.filter(d => d.status === 'threat').length
-  const unknownCount  = deviceList.filter(d => d.status === 'unknown').length
-  const trustedCount  = deviceList.filter(d => d.status === 'trusted').length
+  const threatCount  = deviceList.filter(d => d.status === 'threat').length
+  const unknownCount = deviceList.filter(d => d.status === 'unknown').length
+  const trustedCount = deviceList.filter(d => d.status === 'trusted').length
  
   return (
     <div className="animate-in">
@@ -144,8 +210,28 @@ export default function Devices() {
         </div>
       )}
  
+      {/* Kick info banner */}
+      <div style={{
+        background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.2)',
+        borderRadius: 'var(--radius)', padding: '10px 16px', marginBottom: 16,
+        fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', lineHeight: 1.7,
+      }}>
+        ⚡ <span style={{ color: 'var(--amber)' }}>Kick requires the local agent running.</span>{' '}
+        Clicking Kick queues a command — your agent picks it up on the next{' '}
+        <code style={{ color: 'var(--green)' }}>--scan</code> or{' '}
+        <code style={{ color: 'var(--green)' }}>--watch</code> cycle and executes ARP deauth.
+        Status updates every 5s automatically.
+      </div>
+ 
       {actionMsg && (
-        <div style={{ background: 'var(--green-dim)', border: '1px solid rgba(0,229,160,0.3)', borderRadius: 'var(--radius)', padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', marginBottom: 16 }}>
+        <div style={{
+          background: actionMsg.startsWith('⚠') ? 'var(--red-dim)' : 'var(--green-dim)',
+          border: `1px solid ${actionMsg.startsWith('⚠') ? 'rgba(255,68,68,0.3)' : 'rgba(0,229,160,0.3)'}`,
+          borderRadius: 'var(--radius)', padding: '10px 16px',
+          fontFamily: 'var(--font-mono)', fontSize: 11,
+          color: actionMsg.startsWith('⚠') ? 'var(--red)' : 'var(--green)',
+          marginBottom: 16,
+        }}>
           {actionMsg}
         </div>
       )}
@@ -163,10 +249,10 @@ export default function Devices() {
           <>
             {/* Desktop table */}
             <div className="devices-table table-scroll">
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 650 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border2)' }}>
-                    {['IP Address', 'MAC Address', 'Hostname', 'Vendor', 'OS Guess', 'Ports', 'Status', 'Actions'].map(h => (
+                    {['IP Address', 'MAC Address', 'Hostname', 'Vendor', 'OS', 'Ports', 'Status', 'Actions'].map(h => (
                       <th key={h} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1.5, padding: '0 12px 10px 0', textAlign: 'left', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -174,11 +260,14 @@ export default function Devices() {
                 <tbody>
                   {deviceList.map((device, i) => {
                     const st = STATUS_MAP[device.status] || STATUS_MAP.unknown
+                    const kickStatus = kickStatuses[device.mac?.toUpperCase()]
+                    const ks = kickStatus ? KICK_STATUS_MAP[kickStatus] : null
+ 
                     return (
                       <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '12px 12px 12px 0', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--blue)', whiteSpace: 'nowrap' }}>{device.ip}</td>
                         <td style={{ padding: '12px 12px 12px 0', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{device.mac || '—'}</td>
-                        <td style={{ padding: '12px 12px 12px 0', fontSize: 11, color: 'var(--muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{device.hostname || '—'}</td>
+                        <td style={{ padding: '12px 12px 12px 0', fontSize: 11, color: 'var(--muted)', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{device.hostname || '—'}</td>
                         <td style={{ padding: '12px 12px 12px 0', fontSize: 12 }}>{device.vendor || 'Unknown'}</td>
                         <td style={{ padding: '12px 12px 12px 0', fontSize: 11, color: 'var(--muted)' }}>{device.os_guess || '—'}</td>
                         <td style={{ padding: '12px 12px 12px 0', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{device.ports?.length ?? 0}</td>
@@ -186,15 +275,26 @@ export default function Devices() {
                           <span className={`badge ${st.badge}`}>{st.label}</span>
                         </td>
                         <td style={{ padding: '12px 0' }}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            {device.status !== 'trusted' && device.mac && (
-                              <button className="btn-ghost" style={{ fontSize: 9, padding: '4px 10px' }} onClick={() => handleTrust(device.mac, device.vendor)}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {ks && (
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: ks.color, whiteSpace: 'nowrap' }}>
+                                {ks.label}
+                              </span>
+                            )}
+                            {device.status !== 'trusted' && device.mac && !ks && (
+                              <button className="btn-ghost" style={{ fontSize: 9, padding: '4px 10px' }}
+                                onClick={() => handleTrust(device.mac, device.vendor)}>
                                 TRUST
                               </button>
                             )}
                             {device.mac && (
-                              <button className="btn-danger" style={{ fontSize: 9, padding: '4px 10px' }} onClick={() => handleKick(device.mac)}>
-                                KICK
+                              <button
+                                className="btn-danger"
+                                style={{ fontSize: 9, padding: '4px 10px', opacity: kickStatus === 'pending' ? 0.5 : 1 }}
+                                disabled={kickStatus === 'pending'}
+                                onClick={() => handleKick(device.mac, device.ip)}
+                              >
+                                {kickStatus === 'pending' ? '⏳' : 'KICK'}
                               </button>
                             )}
                           </div>
@@ -212,9 +312,9 @@ export default function Devices() {
                 <DeviceCard
                   key={i}
                   device={device}
-                  trustedMacs={trustedMacs}
                   onTrust={handleTrust}
                   onKick={handleKick}
+                  kickStatus={kickStatuses[device.mac?.toUpperCase()]}
                 />
               ))}
             </div>

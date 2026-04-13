@@ -1,47 +1,58 @@
 """
 netguard/backend/routers/devices.py
 ─────────────────────────────────────
-Endpoints for managing trusted/unknown devices.
+Endpoints for managing trusted/unknown devices and kick commands.
+ 
+Kick flow:
+  1. User clicks Kick in dashboard → POST /api/devices/kick
+  2. Backend stores KickCommand(status="pending") in DB
+  3. Agent polls GET /api/devices/agent/commands?agent_secret=...&user_id=...
+  4. Agent executes ARP deauth on target device
+  5. Agent reports result → POST /api/devices/agent/kick-result
+  6. Backend marks KickCommand(status="done" or "failed")
 """
-
+ 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from typing import List
-
+ 
 from core.database import get_db
-from core.auth import get_current_user
-from models.db_models import TrustedDevice
-from models.schemas import TrustDeviceRequest, TrustedDeviceOut
-
+from core.auth import get_current_user, verify_agent_secret
+from models.db_models import TrustedDevice, KickCommand
+from models.schemas import (
+    TrustDeviceRequest, TrustedDeviceOut,
+    KickRequest, KickCommandOut, AgentKickResult,
+)
+ 
 router = APIRouter(prefix="/api/devices", tags=["Device Management"])
-
-
+ 
+ 
+# ── GET /api/devices/trusted ──────────────────────────────────────────────────
 @router.get("/trusted", response_model=List[TrustedDeviceOut])
 async def list_trusted_devices(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Return all devices the user has marked as trusted."""
     result = await db.execute(
         select(TrustedDevice).where(
             TrustedDevice.user_id == int(current_user["user_id"])
         )
     )
     return result.scalars().all()
-
-
+ 
+ 
+# ── POST /api/devices/trust ───────────────────────────────────────────────────
 @router.post("/trust", response_model=TrustedDeviceOut, status_code=201)
 async def trust_device(
     body: TrustDeviceRequest,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Mark a device (by MAC) as trusted."""
     user_id = int(current_user["user_id"])
     mac = body.mac_address.upper()
-
-    # Check if already trusted
+ 
     existing = await db.execute(
         select(TrustedDevice).where(
             TrustedDevice.user_id == user_id,
@@ -49,15 +60,13 @@ async def trust_device(
         )
     )
     device = existing.scalar_one_or_none()
-
+ 
     if device:
-        # Update existing record
         device.is_trusted = True
         device.label = body.label or device.label
         await db.flush()
         return device
-
-    # Create new trusted entry
+ 
     new_device = TrustedDevice(
         user_id=user_id,
         mac_address=mac,
@@ -66,18 +75,18 @@ async def trust_device(
     db.add(new_device)
     await db.flush()
     return new_device
-
-
+ 
+ 
+# ── DELETE /api/devices/trust/{mac} ──────────────────────────────────────────
 @router.delete("/trust/{mac_address}", status_code=204)
 async def untrust_device(
     mac_address: str,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Remove a device from the trusted list."""
     user_id = int(current_user["user_id"])
     mac = mac_address.upper()
-
+ 
     result = await db.execute(
         select(TrustedDevice).where(
             TrustedDevice.user_id == user_id,
@@ -85,35 +94,127 @@ async def untrust_device(
         )
     )
     device = result.scalar_one_or_none()
-
     if not device:
         raise HTTPException(status_code=404, detail="Trusted device not found")
-
+ 
     await db.execute(
         delete(TrustedDevice).where(
             TrustedDevice.user_id == user_id,
             TrustedDevice.mac_address == mac,
         )
     )
-
-
-@router.post("/kick")
+ 
+ 
+# ── POST /api/devices/kick ────────────────────────────────────────────────────
+@router.post("/kick", response_model=KickCommandOut, status_code=201)
 async def kick_device(
-    mac_address: str,
+    body: KickRequest,
+    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Send a kick command to the local agent which will perform
-    ARP deauthentication to disconnect the device from the network.
-
-    The actual kick is handled by the agent — this endpoint records
-    the intent and the agent polls for pending kicks.
+    Queue a kick command for the local agent to execute.
+    The agent polls for pending commands and runs ARP deauth.
     """
-    # In full implementation: store kick command, agent polls /agent/commands
-    # For now we return instructions
+    user_id = int(current_user["user_id"])
+    mac = body.mac_address.upper()
+ 
+    # Check for an existing pending kick for this MAC (avoid duplicates)
+    existing = await db.execute(
+        select(KickCommand).where(
+            KickCommand.user_id == user_id,
+            KickCommand.mac_address == mac,
+            KickCommand.status == "pending",
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail="A kick is already pending for this device. Wait for the agent to execute it."
+        )
+ 
+    cmd = KickCommand(
+        user_id=user_id,
+        mac_address=mac,
+        target_ip=body.target_ip,
+        status="pending",
+    )
+    db.add(cmd)
+    await db.flush()
+    return cmd
+ 
+ 
+# ── GET /api/devices/kicks ────────────────────────────────────────────────────
+@router.get("/kicks", response_model=List[KickCommandOut])
+async def list_kicks(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Return recent kick commands for the current user (for UI status display)."""
+    result = await db.execute(
+        select(KickCommand)
+        .where(KickCommand.user_id == int(current_user["user_id"]))
+        .order_by(KickCommand.created_at.desc())
+        .limit(20)
+    )
+    return result.scalars().all()
+ 
+ 
+# ── GET /api/devices/agent/commands ──────────────────────────────────────────
+@router.get("/agent/commands")
+async def get_agent_commands(
+    agent_secret: str,
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Agent polls this endpoint to get pending kick commands.
+    Authenticated via shared secret (not JWT — agent has no login session).
+    """
+    if not verify_agent_secret(agent_secret):
+        raise HTTPException(status_code=401, detail="Invalid agent secret")
+ 
+    result = await db.execute(
+        select(KickCommand).where(
+            KickCommand.user_id == user_id,
+            KickCommand.status == "pending",
+        )
+    )
+    commands = result.scalars().all()
+ 
     return {
-        "status": "queued",
-        "message": f"Kick command queued for {mac_address}. "
-                   "The local agent will execute ARP deauthentication on next poll.",
-        "mac_address": mac_address.upper(),
+        "commands": [
+            {
+                "id": cmd.id,
+                "mac_address": cmd.mac_address,
+                "target_ip": cmd.target_ip,
+            }
+            for cmd in commands
+        ]
     }
+ 
+ 
+# ── POST /api/devices/agent/kick-result ──────────────────────────────────────
+@router.post("/agent/kick-result")
+async def agent_kick_result(
+    body: AgentKickResult,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Agent reports back the result of executing a kick command.
+    """
+    if not verify_agent_secret(body.agent_secret):
+        raise HTTPException(status_code=401, detail="Invalid agent secret")
+ 
+    result = await db.execute(
+        select(KickCommand).where(KickCommand.id == body.kick_id)
+    )
+    cmd = result.scalar_one_or_none()
+    if not cmd:
+        raise HTTPException(status_code=404, detail="Kick command not found")
+ 
+    cmd.status = body.status   # "done" or "failed"
+    cmd.executed_at = datetime.now(timezone.utc)
+    await db.flush()
+ 
+    return {"ok": True, "kick_id": body.kick_id, "status": body.status}
