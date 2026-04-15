@@ -87,7 +87,7 @@ async def get_ai_response(
     def _call():
         client = get_client()
         chat = client.chats.create(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash",
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 max_output_tokens=8192,
