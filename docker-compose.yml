@@ -27,7 +27,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - GEMINI_API_KEY=AIzaSyC65e79n7xg7YOzXVEKDxpwd7yBXK4ac6g   # reads from shell or .env
+      - GEMINI_API_KEY=AIzaSyDtyf1QJkVlsF0d8cNM0RE51oUcKxISjrY   # reads from shell or .env
       - SECRET_KEY=netguard_super_secret_key_2026
       - DATABASE_URL=sqlite+aiosqlite:///./data/netguard.db
       - FRONTEND_ORIGIN=http://localhost:5173
