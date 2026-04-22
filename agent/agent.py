@@ -50,7 +50,7 @@ except ImportError:
 load_dotenv(Path(__file__).parent / '.env')
  
 BACKEND_URL   = os.getenv("BACKEND_URL",   "https://netguard-production-4f1d.up.railway.app")
-AGENT_SECRET  = os.getenv("AGENT_SECRET",  "change_this_shared_secret")
+AGENT_SECRET  = os.getenv("AGENT_SECRET",  "netguard_agent_secret_2026")
 NETWORK_RANGE = os.getenv("NETWORK_RANGE", "")
 SCAN_TYPE     = os.getenv("SCAN_TYPE",     "full")
  
