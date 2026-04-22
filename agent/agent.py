@@ -1,6 +1,3 @@
-
-Copy
-
 #!/usr/bin/env python3
 """
 netguard/agent/agent.py
