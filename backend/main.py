@@ -1,16 +1,24 @@
 """
 netguard/backend/main.py
 ──────────────────────────
-FastAPI application entry point.
+FastAPI application entry point with rate limiting.
 """
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
  
 from core.config import settings
 from core.database import init_db
 from routers import auth, scan, devices, password, chat, alerts
+ 
+# ── Rate limiter (keyed by IP address) ────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
  
  
 @asynccontextmanager
@@ -36,12 +44,17 @@ A full-featured network security monitoring backend with:
 - 🔐 **Password breach check** — HaveIBeenPwned k-anonymity integration
 - 📡 **Real-time alerts** — WebSocket push for instant threat notifications
 - 🗓️ **Scan history** — Persistent scan results and findings
+- 🛡️ **Rate limiting** — Brute force protection on auth endpoints
     """,
     lifespan=lifespan,
 )
  
-# ── CORS — allow_credentials=True is REQUIRED for httpOnly cookies ─────────────
-# allow_origins must list explicit origins (not "*") when allow_credentials=True
+# ── Rate limiting middleware ───────────────────────────────────────────────────
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+ 
+# ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -49,7 +62,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
     ],
-    allow_credentials=True,   # ← REQUIRED: lets browser send/receive cookies
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -1,17 +1,19 @@
 """
 netguard/backend/routers/auth.py
 ──────────────────────────────────
-User registration and login endpoints with Cloudflare Turnstile CAPTCHA.
+User registration and login with Cloudflare Turnstile CAPTCHA
+and slowapi rate limiting.
 """
  
-import secrets
 import httpx
 from datetime import timedelta
  
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from slowapi import Limiter
+from slowapi.util import get_remote_address
  
 from core.database import get_db
 from core.auth import (
@@ -23,6 +25,7 @@ from models.db_models import User
 from models.schemas import UserRegister, TokenResponse
  
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+limiter = Limiter(key_func=get_remote_address)
  
 COOKIE_NAME = "ng_token"
 COOKIE_MAX_AGE = settings.access_token_expire_minutes * 60
@@ -36,15 +39,13 @@ def _set_auth_cookie(response: Response, token: str):
         max_age=COOKIE_MAX_AGE,
         httponly=True,
         samesite="none",
-        secure=True,   # HTTPS in production
+        secure=True,
         path="/",
     )
  
  
 async def verify_turnstile(token: str) -> bool:
-    """Verify Turnstile token with Cloudflare API."""
     if not settings.turnstile_secret_key:
-        # If no key configured, skip verification (dev mode)
         return True
     try:
         async with httpx.AsyncClient() as client:
@@ -63,9 +64,9 @@ async def verify_turnstile(token: str) -> bool:
  
  
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(body: UserRegister, response: Response, db: AsyncSession = Depends(get_db)):
+@limiter.limit("3/minute")   # ← max 3 registrations per IP per minute
+async def register(request: Request, body: UserRegister, response: Response, db: AsyncSession = Depends(get_db)):
     """Create a new user account — verifies Turnstile CAPTCHA first."""
-    # Verify captcha
     captcha_ok = await verify_turnstile(body.turnstile_token or "")
     if not captcha_ok:
         raise HTTPException(status_code=400, detail="CAPTCHA verification failed. Please try again.")
@@ -92,13 +93,14 @@ async def register(body: UserRegister, response: Response, db: AsyncSession = De
  
  
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")   # ← max 5 login attempts per IP per minute
 async def login(
+    request: Request,
     response: Response,
     form: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
     """Login — verifies Turnstile CAPTCHA then authenticates user."""
-    # Turnstile token is passed as a custom field via client_id in OAuth2 form
     captcha_ok = await verify_turnstile(form.client_id or "")
     if not captcha_ok:
         raise HTTPException(status_code=400, detail="CAPTCHA verification failed. Please try again.")
@@ -123,7 +125,7 @@ async def login(
  
 @router.post("/logout", status_code=204)
 async def logout(response: Response):
-    response.delete_cookie(key=COOKIE_NAME, path="/")
+    response.delete_cookie(key=COOKIE_NAME, path="/", samesite="none", secure=True)
  
  
 @router.get("/ws-ticket")
