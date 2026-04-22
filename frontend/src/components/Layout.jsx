@@ -1,26 +1,69 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { auth, auth_state } from '../services/api.js'
  
 const NAV = [
-  { to: '/overview',    label: 'Overview',     icon: '◈' },
-  { to: '/devices',     label: 'Devices',      icon: '◉' },
-  { to: '/ports',       label: 'Port Scan',    icon: '◎' },
-  { to: '/password',    label: 'Pwned Check',  icon: '◆' },
-  { to: '/ai',          label: 'AI Advisor',   icon: '◇' },
-  { to: '/agent-setup', label: 'Run Scan',     icon: '▶' },
+  { to: '/overview',    label: 'Overview',    icon: '◈', code: 'OVR' },
+  { to: '/devices',     label: 'Devices',     icon: '◉', code: 'DEV' },
+  { to: '/ports',       label: 'Port Scan',   icon: '◎', code: 'PSC' },
+  { to: '/password',    label: 'Pwned Check', icon: '◆', code: 'PWD' },
+  { to: '/ai',          label: 'AI Advisor',  icon: '◇', code: 'AIA' },
+  { to: '/agent-setup', label: 'Run Scan',    icon: '▶', code: 'SCN' },
 ]
+ 
+// Ambient data stream background
+function DataStream() {
+  const canvasRef = useRef(null)
+ 
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    canvas.width  = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+ 
+    const cols = Math.floor(canvas.width / 14)
+    const drops = Array(cols).fill(1).map(() => Math.random() * -50)
+    const chars  = '01アイウエオカキ█▓░┼┤├╔╗╚╝╠╣ AB_#$%'
+ 
+    function draw() {
+      ctx.fillStyle = 'rgba(4,5,6,0.05)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.fillStyle = 'rgba(232,53,74,0.08)'
+      ctx.font = '11px Share Tech Mono, monospace'
+ 
+      drops.forEach((y, i) => {
+        const char = chars[Math.floor(Math.random() * chars.length)]
+        ctx.fillText(char, i * 14, y * 14)
+        if (y * 14 > canvas.height && Math.random() > 0.975) drops[i] = 0
+        drops[i] += 0.3
+      })
+    }
+ 
+    const id = setInterval(draw, 60)
+    return () => clearInterval(id)
+  }, [])
+ 
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute', inset: 0, width: '100%', height: '100%',
+        pointerEvents: 'none', opacity: 0.6, zIndex: 0,
+      }}
+    />
+  )
+}
  
 export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [time, setTime] = useState(new Date())
+  const [time, setTime]         = useState(new Date())
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem('ng_theme') || 'dark'
-  )
+  const [threatLevel, setThreatLevel] = useState('NOMINAL')
+  const [theme, setTheme]       = useState(() => localStorage.getItem('ng_theme') || 'dark')
+  const [bootSeq, setBootSeq]   = useState(true)
  
-  // Apply theme to document root
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('ng_theme', theme)
@@ -35,18 +78,24 @@ export default function Layout() {
     setSidebarOpen(false)
   }, [location.pathname])
  
+  useEffect(() => {
+    const t = setTimeout(() => setBootSeq(false), 800)
+    return () => clearTimeout(t)
+  }, [])
+ 
   async function handleLogout() {
     await auth.logout()
     navigate('/login')
   }
  
-  function toggleTheme() {
-    setTheme(t => t === 'dark' ? 'light' : 'dark')
-  }
- 
-  const username = auth_state.getUsername() || 'user'
+  const username   = auth_state.getUsername() || 'operator'
   const currentNav = NAV.find(n => n.to === location.pathname)
-  const isDark = theme === 'dark'
+  const isDark     = theme === 'dark'
+ 
+  // Threat level color logic — you'd wire this to real data
+  const threatColor = threatLevel === 'CRITICAL' ? 'var(--red-bright)'
+    : threatLevel === 'HIGH' ? 'var(--amber)'
+    : 'var(--blue)'
  
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -57,95 +106,181 @@ export default function Layout() {
         onClick={() => setSidebarOpen(false)}
       />
  
-      {/* Sidebar */}
+      {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} style={{
-        width: 220,
-        background: 'var(--surface)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
+        width: 220, display: 'flex', flexDirection: 'column', flexShrink: 0,
+        position: 'relative', overflow: 'hidden',
       }}>
-        {/* Logo */}
-        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Data stream canvas in sidebar */}
+        <DataStream />
+ 
+        {/* All sidebar content above canvas */}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+ 
+          {/* Logo */}
+          <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="logo-hex" style={{
+                width: 34, height: 34,
+                border: '2px solid var(--red)',
+                borderRadius: 6,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--red)', fontSize: 16,
+                boxShadow: '0 0 10px var(--red-glow)',
+                background: 'var(--red-dim)',
+              }}>⬡</div>
+              <div>
+                <div style={{
+                  fontFamily: 'var(--font-display)',
+                  color: 'var(--text-bright)',
+                  fontSize: 17,
+                  letterSpacing: 4,
+                  fontWeight: 700,
+                }}>NETGUARD</div>
+                <div style={{
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--muted)',
+                  fontSize: 8,
+                  letterSpacing: 2,
+                }}>SECURITY MONITOR v2</div>
+              </div>
+            </div>
+ 
+            {/* System status bar */}
             <div style={{
-              width: 32, height: 32,
-              border: '2px solid var(--green)',
-              borderRadius: 6,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--green)', fontSize: 14,
-            }}>⬡</div>
-            <div>
-              <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--green)', fontSize: 16, letterSpacing: 3 }}>NETGUARD</div>
-              <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 9, letterSpacing: 2 }}>SECURITY MONITOR</div>
+              marginTop: 12,
+              padding: '6px 8px',
+              background: 'var(--surface2)',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--muted)', letterSpacing: 1 }}>THREAT LEVEL</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: threatColor, letterSpacing: 2, fontWeight: 700 }}>
+                {threatLevel}
+              </span>
             </div>
           </div>
-        </div>
  
-        {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 10px' }}>
-          {NAV.map(({ to, label, icon }) => {
-            const isRunScan = to === '/agent-setup'
-            return (
-              <NavLink key={to} to={to} style={({ isActive }) => ({
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '9px 12px', borderRadius: 'var(--radius)',
-                fontFamily: 'var(--font-mono)', fontSize: 11,
-                letterSpacing: 1.5, textTransform: 'uppercase',
-                textDecoration: 'none',
-                marginBottom: isRunScan ? 0 : 2,
-                marginTop: isRunScan ? 8 : 0,
-                borderTop: isRunScan ? '1px solid var(--border)' : 'none',
-                paddingTop: isRunScan ? 12 : 9,
-                color: isActive ? 'var(--green)' : isRunScan ? 'var(--green)' : 'var(--muted)',
-                background: isActive ? 'var(--green-dim)' : 'transparent',
-                border: `1px solid ${isActive ? 'rgba(0,229,160,0.3)' : 'transparent'}`,
-                borderTopColor: isRunScan && !isActive ? 'var(--border)' : undefined,
-                transition: 'all 0.15s',
-              })}>
-                <span style={{ fontSize: 14 }}>{icon}</span>
-                {label}
-              </NavLink>
-            )
-          })}
-        </nav>
+          {/* Navigation */}
+          <nav style={{ flex: 1, padding: '10px 8px', overflowY: 'auto' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--muted2)', letterSpacing: 3, padding: '6px 6px 8px', textTransform: 'uppercase' }}>
+              Navigation
+            </div>
  
-        {/* Footer */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginBottom: 8 }}>
-            {time.toLocaleTimeString()}
-          </div>
+            {NAV.map(({ to, label, icon, code }) => {
+              const isRunScan = to === '/agent-setup'
+              return (
+                <NavLink key={to} to={to} style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 10px', borderRadius: 'var(--radius)',
+                  fontFamily: 'var(--font-mono)', fontSize: 10,
+                  letterSpacing: 2, textTransform: 'uppercase',
+                  textDecoration: 'none',
+                  marginBottom: isRunScan ? 0 : 2,
+                  marginTop: isRunScan ? 8 : 0,
+                  borderTop: isRunScan ? '1px solid var(--border)' : 'none',
+                  paddingTop: isRunScan ? 12 : 8,
+                  color: isActive ? 'var(--red-bright)' : isRunScan ? 'var(--red)' : 'var(--muted)',
+                  background: isActive ? 'var(--red-dim)' : 'transparent',
+                  border: `1px solid ${isActive ? 'rgba(232,53,74,0.35)' : 'transparent'}`,
+                  borderTopColor: isRunScan && !isActive ? 'var(--border)' : undefined,
+                  transition: 'all 0.15s',
+                  position: 'relative',
+                  boxShadow: isActive ? 'inset 0 0 15px rgba(232,53,74,0.05)' : 'none',
+                })}>
+                  {({ isActive }) => (
+                    <>
+                      {/* Left active indicator */}
+                      <div style={{
+                        position: 'absolute', left: 0, top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 2, height: isActive ? '60%' : 0,
+                        background: 'var(--red)',
+                        boxShadow: '0 0 6px var(--red-glow)',
+                        borderRadius: '0 1px 1px 0',
+                        transition: 'height 0.2s ease',
+                      }} />
+                      {/* Code tag */}
+                      <span style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 7,
+                        color: isActive ? 'var(--red)' : 'var(--muted2)',
+                        letterSpacing: 1,
+                        minWidth: 24,
+                        opacity: 0.7,
+                      }}>{code}</span>
+                      <span style={{ fontSize: 13 }}>{icon}</span>
+                      <span style={{ flex: 1 }}>{label}</span>
+                      {isActive && (
+                        <div style={{ width: 4, height: 4, background: 'var(--red)', borderRadius: '50%', boxShadow: '0 0 4px var(--red-glow)' }} />
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              )
+            })}
+          </nav>
  
-          {/* Theme toggle */}
-          <button
-            className="theme-toggle"
-            onClick={toggleTheme}
-            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={{ width: '100%', marginBottom: 8, justifyContent: 'center' }}
-          >
-            {isDark ? '☀ LIGHT MODE' : '☾ DARK MODE'}
-          </button>
+          {/* Footer */}
+          <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
+            {/* Clock */}
+            <div style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              color: 'var(--muted)',
+              marginBottom: 8,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span>{time.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+              <span className="terminal-cursor" style={{ color: 'var(--red)', fontSize: 11 }}>
+                {time.toLocaleTimeString()}
+              </span>
+            </div>
  
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text)' }}>
-              {username}
-            </span>
-            <button className="btn-ghost" style={{ padding: '4px 10px', fontSize: 9 }} onClick={handleLogout}>
-              LOGOUT
+            {/* Theme toggle */}
+            <button
+              className="theme-toggle"
+              onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+              style={{ width: '100%', marginBottom: 8, justifyContent: 'center', fontSize: 10 }}
+            >
+              {isDark ? '☀ LIGHT' : '☾ DARK'}
             </button>
+ 
+            {/* User + logout */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '6px 0',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: 'var(--red-dim)',
+                  border: '1px solid var(--red)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-mono)', fontSize: 9,
+                  color: 'var(--red)',
+                }}>
+                  {username.slice(0, 2).toUpperCase()}
+                </div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text)' }}>
+                  {username}
+                </span>
+              </div>
+              <button className="btn-ghost" style={{ padding: '3px 8px', fontSize: 8, letterSpacing: 1 }} onClick={handleLogout}>
+                EXIT
+              </button>
+            </div>
           </div>
         </div>
       </aside>
  
-      {/* Right side wrapper */}
+      {/* ── RIGHT SIDE ──────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
  
-        {/* Mobile top bar */}
+        {/* Mobile topbar */}
         <div className="mobile-topbar" style={{
-          display: 'none',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: 'none', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 16px',
           background: 'var(--surface)',
           borderBottom: '1px solid var(--border)',
@@ -155,44 +290,53 @@ export default function Layout() {
             className="hamburger"
             onClick={() => setSidebarOpen(o => !o)}
             style={{
-              background: 'none',
-              border: '1px solid var(--border2)',
-              borderRadius: 'var(--radius)',
-              color: 'var(--green)',
-              fontSize: 18,
-              padding: '4px 10px',
-              lineHeight: 1,
-              letterSpacing: 0,
+              background: 'none', border: '1px solid var(--border2)',
+              borderRadius: 'var(--radius)', color: 'var(--red)',
+              fontSize: 18, padding: '4px 10px', lineHeight: 1, letterSpacing: 0,
             }}
-          >
-            ☰
-          </button>
+          >☰</button>
  
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--green)', letterSpacing: 2 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, color: 'var(--red)', letterSpacing: 3, fontWeight: 700 }}>
             {currentNav ? `${currentNav.icon} ${currentNav.label.toUpperCase()}` : 'NETGUARD'}
           </div>
  
           <div style={{ display: 'flex', gap: 6 }}>
-            {/* Theme toggle on mobile */}
             <button
               className="theme-toggle"
-              onClick={toggleTheme}
+              onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
               style={{ padding: '4px 8px', fontSize: 12 }}
-              title={isDark ? 'Light mode' : 'Dark mode'}
             >
               {isDark ? '☀' : '☾'}
             </button>
-            <button
-              className="btn-ghost"
-              style={{ fontSize: 9, padding: '4px 10px' }}
-              onClick={handleLogout}
-            >
+            <button className="btn-ghost" style={{ fontSize: 9, padding: '4px 10px' }} onClick={handleLogout}>
               EXIT
             </button>
           </div>
         </div>
  
-        {/* Main content */}
+        {/* Top HUD bar — breadcrumb + scan bar */}
+        <div style={{
+          padding: '0 24px',
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+        }}>
+          <div style={{ height: 2 }}>
+            <div className="scan-bar" style={{ width: '100%' }} />
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 0',
+            fontFamily: 'var(--font-mono)', fontSize: 9,
+            color: 'var(--muted)', letterSpacing: 1.5,
+          }}>
+            <span style={{ color: 'var(--red)', opacity: 0.7 }}>NETGUARD</span>
+            <span>/</span>
+            <span style={{ color: 'var(--text)' }}>{currentNav?.label?.toUpperCase() || 'SYSTEM'}</span>
+          </div>
+        </div>
+ 
+        {/* Main */}
         <main className="main-content" style={{ flex: 1, overflow: 'auto', padding: 24 }}>
           <Outlet />
         </main>
@@ -200,3 +344,4 @@ export default function Layout() {
     </div>
   )
 }
+ 
