@@ -15,45 +15,34 @@ export default function Login() {
   const turnstileRef = useRef(null)
   const widgetIdRef = useRef(null)
  
-  // Load Turnstile script once
-  useEffect(() => {
-    if (!document.getElementById('turnstile-script')) {
-      const script = document.createElement('script')
-      script.id = 'turnstile-script'
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
-      script.async = true
-      script.defer = true
-      document.head.appendChild(script)
+  function renderWidget() {
+    if (!window.turnstile || !turnstileRef.current) return
+    if (widgetIdRef.current !== null) {
+      try { window.turnstile.remove(widgetIdRef.current) } catch {}
+      widgetIdRef.current = null
     }
-  }, [])
+    setTurnstileToken('')
+    widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      theme: 'dark',
+      callback: (token) => setTurnstileToken(token),
+      'expired-callback': () => setTurnstileToken(''),
+      'error-callback': () => setTurnstileToken(''),
+    })
+  }
  
-  // Render Turnstile widget whenever mode changes
   useEffect(() => {
-    const renderWidget = () => {
-      if (!window.turnstile || !turnstileRef.current) return
-      // Remove old widget if exists
-      if (widgetIdRef.current !== null) {
-        try { window.turnstile.remove(widgetIdRef.current) } catch {}
-        widgetIdRef.current = null
-      }
-      setTurnstileToken('')
-      widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
-        sitekey: TURNSTILE_SITE_KEY,
-        theme: 'dark',
-        callback: (token) => setTurnstileToken(token),
-        'expired-callback': () => setTurnstileToken(''),
-        'error-callback': () => setTurnstileToken(''),
-      })
-    }
- 
-    // Wait for script to load
+    // Poll until turnstile is ready (script loaded from index.html)
+    let attempts = 0
     const interval = setInterval(() => {
+      attempts++
       if (window.turnstile) {
         clearInterval(interval)
         renderWidget()
+      } else if (attempts > 50) {
+        clearInterval(interval) // give up after 5s
       }
     }, 100)
- 
     return () => clearInterval(interval)
   }, [mode])
  
@@ -62,7 +51,7 @@ export default function Login() {
     setError('')
  
     if (!turnstileToken) {
-      setError('Please complete the CAPTCHA verification.')
+      setError('Please wait for CAPTCHA to load and complete verification.')
       return
     }
  
@@ -76,7 +65,6 @@ export default function Login() {
       navigate('/overview')
     } catch (err) {
       setError(err.message)
-      // Reset turnstile on error
       if (widgetIdRef.current !== null) {
         try { window.turnstile.reset(widgetIdRef.current) } catch {}
       }
@@ -84,6 +72,13 @@ export default function Login() {
     } finally {
       setLoading(false)
     }
+  }
+ 
+  function switchMode(newMode) {
+    setMode(newMode)
+    setShowPassword(false)
+    setError('')
+    setForm({ username: '', email: '', password: '' })
   }
  
   return (
@@ -160,7 +155,6 @@ export default function Login() {
                     background: 'none', border: 'none', cursor: 'pointer',
                     color: 'var(--muted)', fontSize: 14, padding: 0, lineHeight: 1,
                   }}
-                  title={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? '🙈' : '👁'}
                 </button>
@@ -171,6 +165,12 @@ export default function Login() {
             <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }}>
               <div ref={turnstileRef} />
             </div>
+ 
+            {!turnstileToken && (
+              <div style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)' }}>
+                Loading security check...
+              </div>
+            )}
  
             {error && (
               <div style={{
@@ -194,9 +194,9 @@ export default function Login() {
  
           <div style={{ marginTop: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)' }}>
             {mode === 'login' ? (
-              <>No account? <button onClick={() => { setMode('register'); setShowPassword(false) }} style={{ background: 'none', border: 'none', color: 'var(--green)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10 }}>REGISTER</button></>
+              <>No account? <button onClick={() => switchMode('register')} style={{ background: 'none', border: 'none', color: 'var(--green)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10 }}>REGISTER</button></>
             ) : (
-              <>Have an account? <button onClick={() => { setMode('login'); setShowPassword(false) }} style={{ background: 'none', border: 'none', color: 'var(--green)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10 }}>LOGIN</button></>
+              <>Have an account? <button onClick={() => switchMode('login')} style={{ background: 'none', border: 'none', color: 'var(--green)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10 }}>LOGIN</button></>
             )}
           </div>
         </div>
