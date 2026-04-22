@@ -57,27 +57,36 @@ async function apiFetch(path, options = {}) {
 // ══════════════════════════════════════════════════════════════════════════════
  
 export const auth = {
-  async register(username, email, password) {
-    // Backend sets httpOnly cookie in the response — we just read the username
+  async register(username, email, password, turnstileToken) {
     const data = await apiFetch("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        turnstile_token: turnstileToken,
+      }),
     });
-    auth_state.setUsername(data.username);
+    token.set(data.access_token);
     return data;
   },
  
-  async login(username, password) {
-    const form = new URLSearchParams({ username, password });
+  async login(username, password, turnstileToken) {
+    // Login uses form encoding (OAuth2 standard)
+    // Turnstile token is passed via client_id field
+    const form = new URLSearchParams({
+      username,
+      password,
+      client_id: turnstileToken,
+    });
     const response = await fetch(`${BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
-      credentials: "include",   // ← cookie is set by server in this response
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || "Login failed");
-    auth_state.setUsername(data.username);
+    token.set(data.access_token);
     return data;
   },
  

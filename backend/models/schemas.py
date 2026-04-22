@@ -12,6 +12,7 @@ class UserRegister(BaseModel):
     username: str
     email: EmailStr
     password: str
+    turnstile_token: str = ""
  
     @field_validator("password")
     @classmethod

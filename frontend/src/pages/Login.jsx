@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth } from '../services/api.js'
+ 
+const TURNSTILE_SITE_KEY = '0x4AAAAAADBVh15Y0oJUYMbv'
  
 export default function Login() {
   const navigate = useNavigate()
@@ -9,22 +11,76 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const turnstileRef = useRef(null)
+  const widgetIdRef = useRef(null)
+ 
+  // Load Turnstile script once
+  useEffect(() => {
+    if (!document.getElementById('turnstile-script')) {
+      const script = document.createElement('script')
+      script.id = 'turnstile-script'
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+      script.async = true
+      script.defer = true
+      document.head.appendChild(script)
+    }
+  }, [])
+ 
+  // Render Turnstile widget whenever mode changes
+  useEffect(() => {
+    const renderWidget = () => {
+      if (!window.turnstile || !turnstileRef.current) return
+      // Remove old widget if exists
+      if (widgetIdRef.current !== null) {
+        try { window.turnstile.remove(widgetIdRef.current) } catch {}
+        widgetIdRef.current = null
+      }
+      setTurnstileToken('')
+      widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: 'dark',
+        callback: (token) => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(''),
+        'error-callback': () => setTurnstileToken(''),
+      })
+    }
+ 
+    // Wait for script to load
+    const interval = setInterval(() => {
+      if (window.turnstile) {
+        clearInterval(interval)
+        renderWidget()
+      }
+    }, 100)
+ 
+    return () => clearInterval(interval)
+  }, [mode])
  
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+ 
+    if (!turnstileToken) {
+      setError('Please complete the CAPTCHA verification.')
+      return
+    }
+ 
     setLoading(true)
     try {
       if (mode === 'login') {
-        await auth.login(form.username, form.password)
+        await auth.login(form.username, form.password, turnstileToken)
       } else {
-        await auth.register(form.username, form.email, form.password)
+        await auth.register(form.username, form.email, form.password, turnstileToken)
       }
-      // JWT is now in an httpOnly cookie set by the server.
-      // Username is stored in sessionStorage via auth_state (set inside auth.login/register).
       navigate('/overview')
     } catch (err) {
       setError(err.message)
+      // Reset turnstile on error
+      if (widgetIdRef.current !== null) {
+        try { window.turnstile.reset(widgetIdRef.current) } catch {}
+      }
+      setTurnstileToken('')
     } finally {
       setLoading(false)
     }
@@ -111,6 +167,11 @@ export default function Login() {
               </div>
             </div>
  
+            {/* Turnstile widget */}
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }}>
+              <div ref={turnstileRef} />
+            </div>
+ 
             {error && (
               <div style={{
                 background: 'var(--red-dim)', border: '1px solid rgba(255,68,68,0.3)',
@@ -121,7 +182,12 @@ export default function Login() {
               </div>
             )}
  
-            <button type="submit" className="btn-primary" style={{ marginTop: 4, padding: '12px 20px', fontSize: 12 }} disabled={loading}>
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ marginTop: 4, padding: '12px 20px', fontSize: 12 }}
+              disabled={loading || !turnstileToken}
+            >
               {loading ? <span className="spinner" /> : (mode === 'login' ? 'AUTHENTICATE' : 'CREATE ACCOUNT')}
             </button>
           </form>

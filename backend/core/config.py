@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     secret_key: str = "netguard_super_secret_key_2026"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440   # 24 hours
+    turnstile_secret_key: str = ""
  
     # ── Database ─────────────────────────────────────────────────────────────
     database_url: str = "sqlite+aiosqlite:///./netguard.db"

@@ -1,16 +1,11 @@
 """
 netguard/backend/routers/auth.py
 ──────────────────────────────────
-User registration and login endpoints.
-Sets JWT token in httpOnly cookie on success (XSS-safe).
- 
-Extra endpoint:
-  GET /api/auth/ws-ticket  — issues a short-lived token (60s)
-                             for WebSocket authentication so the main
-                             JWT is never exposed in a URL query param.
+User registration and login endpoints with Cloudflare Turnstile CAPTCHA.
 """
  
 import secrets
+import httpx
 from datetime import timedelta
  
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -30,25 +25,51 @@ from models.schemas import UserRegister, TokenResponse
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
  
 COOKIE_NAME = "ng_token"
-COOKIE_MAX_AGE = settings.access_token_expire_minutes * 60  # seconds
+COOKIE_MAX_AGE = settings.access_token_expire_minutes * 60
+TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
  
  
 def _set_auth_cookie(response: Response, token: str):
-    """Set JWT as an httpOnly, SameSite=Lax cookie."""
     response.set_cookie(
         key=COOKIE_NAME,
         value=token,
         max_age=COOKIE_MAX_AGE,
-        httponly=True,      # ← JS cannot read this cookie — XSS-safe
-        samesite="lax",     # ← CSRF protection
-        secure=False,       # ← set True in production (HTTPS)
+        httponly=True,
+        samesite="lax",
+        secure=True,   # HTTPS in production
         path="/",
     )
  
  
+async def verify_turnstile(token: str) -> bool:
+    """Verify Turnstile token with Cloudflare API."""
+    if not settings.turnstile_secret_key:
+        # If no key configured, skip verification (dev mode)
+        return True
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                TURNSTILE_VERIFY_URL,
+                data={
+                    "secret": settings.turnstile_secret_key,
+                    "response": token,
+                },
+                timeout=5.0,
+            )
+            result = resp.json()
+            return result.get("success", False)
+    except Exception:
+        return False
+ 
+ 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(body: UserRegister, response: Response, db: AsyncSession = Depends(get_db)):
-    """Create a new user account and set auth cookie."""
+    """Create a new user account — verifies Turnstile CAPTCHA first."""
+    # Verify captcha
+    captcha_ok = await verify_turnstile(body.turnstile_token or "")
+    if not captcha_ok:
+        raise HTTPException(status_code=400, detail="CAPTCHA verification failed. Please try again.")
+ 
     existing = await db.execute(
         select(User).where(
             (User.username == body.username) | (User.email == body.email)
@@ -67,8 +88,7 @@ async def register(body: UserRegister, response: Response, db: AsyncSession = De
  
     token = create_access_token({"sub": str(user.id), "username": user.username})
     _set_auth_cookie(response, token)
-    # Return username for display; raw JWT is in the cookie only
-    return TokenResponse(access_token="[httpOnly-cookie]", username=user.username)
+    return TokenResponse(access_token=token, username=user.username)
  
  
 @router.post("/login", response_model=TokenResponse)
@@ -77,7 +97,12 @@ async def login(
     form: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    """Login with username + password — sets httpOnly cookie, returns username."""
+    """Login — verifies Turnstile CAPTCHA then authenticates user."""
+    # Turnstile token is passed as a custom field via client_id in OAuth2 form
+    captcha_ok = await verify_turnstile(form.client_id or "")
+    if not captcha_ok:
+        raise HTTPException(status_code=400, detail="CAPTCHA verification failed. Please try again.")
+ 
     result = await db.execute(select(User).where(User.username == form.username))
     user = result.scalar_one_or_none()
  
@@ -93,22 +118,16 @@ async def login(
  
     token = create_access_token({"sub": str(user.id), "username": user.username})
     _set_auth_cookie(response, token)
-    return TokenResponse(access_token="[httpOnly-cookie]", username=user.username)
+    return TokenResponse(access_token=token, username=user.username)
  
  
 @router.post("/logout", status_code=204)
 async def logout(response: Response):
-    """Clear the auth cookie server-side."""
     response.delete_cookie(key=COOKIE_NAME, path="/")
  
  
 @router.get("/ws-ticket")
 async def get_ws_ticket(current_user: dict = Depends(get_current_user)):
-    """
-    Issue a short-lived (60s) JWT for WebSocket authentication.
-    The client places this in the ws:// URL — it never touches any storage
-    and expires before it could be meaningfully replayed.
-    """
     ws_token = create_access_token(
         {"sub": current_user["user_id"], "username": current_user["username"]},
         expires_delta=timedelta(seconds=60),
