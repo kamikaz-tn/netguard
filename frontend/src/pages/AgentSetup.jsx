@@ -1,51 +1,80 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-const STEPS = [
-  {
-    num: '01',
-    title: 'Install Python',
-    desc: 'Make sure Python 3.11 or higher is installed on your machine.',
-    code: 'python --version',
-    link: { label: 'Download Python', url: 'https://python.org/downloads' },
-  },
-  {
-    num: '02',
-    title: 'Install Nmap',
-    desc: 'The agent uses Nmap to scan open ports on your network.',
-    code: null,
-    link: { label: 'Download Nmap', url: 'https://nmap.org/download' },
-  },
-  {
-    num: '03',
-    title: 'Install Agent Dependencies',
-    desc: 'Open a terminal in the folder where you downloaded the agent and run:',
-    code: 'pip install -r requirements.txt',
-    link: null,
-  },
-  {
-    num: '04',
-    title: 'Run the Agent',
-    desc: 'Run the agent as Administrator (Windows) or with sudo (Linux/Mac) for ARP scanning:',
-    code: 'python agent.py --scan',
-    link: null,
-  },
+ 
+// ── OS-specific config ─────────────────────────────────────────────────────────
+const OS_OPTIONS = [
+  { id: 'windows', label: 'Windows',  icon: '🪟' },
+  { id: 'linux',   label: 'Linux',    icon: '🐧' },
+  { id: 'mac',     label: 'macOS',    icon: '🍎' },
 ]
-
+ 
+function getSteps(os) {
+  const isWin = os === 'windows'
+ 
+  return [
+    {
+      num: '01',
+      title: 'Install Python',
+      desc: 'Make sure Python 3.11 or higher is installed on your machine.',
+      code: isWin ? 'python --version' : 'python3 --version',
+      link: { label: 'Download Python', url: 'https://python.org/downloads' },
+    },
+    {
+      num: '02',
+      title: 'Install Nmap',
+      desc: 'The agent uses Nmap to scan open ports on your network.',
+      code: null,
+      note: isWin
+        ? 'Download the Windows installer from nmap.org and run it as Administrator.'
+        : os === 'linux'
+          ? 'Or install via terminal:'
+          : 'Or install via Homebrew:',
+      extraCode: isWin ? null : os === 'linux' ? 'sudo apt install nmap' : 'brew install nmap',
+      link: { label: 'Download Nmap', url: 'https://nmap.org/download' },
+    },
+    {
+      num: '03',
+      title: 'Install Agent Dependencies',
+      desc: 'Open a terminal in the folder where you downloaded the agent and run:',
+      code: isWin ? 'pip install -r requirements.txt' : 'pip3 install -r requirements.txt',
+      link: null,
+    },
+    {
+      num: '04',
+      title: 'Run the Agent',
+      desc: isWin
+        ? 'Run PowerShell or Command Prompt as Administrator, then run:'
+        : 'ARP scanning requires root access. Run with sudo:',
+      code: isWin
+        ? 'python agent.py --scan'
+        : `sudo python3 agent.py --scan`,
+      note: isWin
+        ? 'Right-click PowerShell → "Run as Administrator" before running the command.'
+        : os === 'linux'
+          ? 'On Linux, sudo grants the raw socket access needed for ARP scanning.'
+          : 'On macOS, sudo grants the raw socket access needed for ARP scanning.',
+      link: null,
+    },
+  ]
+}
+ 
 const AGENT_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/refs/heads/main/agent/agent.py'
 const REQUIREMENTS_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/refs/heads/main/agent/requirements.txt'
-
+ 
 export default function AgentSetup() {
   const navigate = useNavigate()
-  const [agreed, setAgreed] = useState(false)
-  const [copied, setCopied] = useState(null)
-
+  const [agreed, setAgreed]   = useState(false)
+  const [copied, setCopied]   = useState(null)
+  const [os, setOs]           = useState('windows')
+ 
+  const steps = getSteps(os)
+ 
   function copyCode(code, id) {
     navigator.clipboard.writeText(code)
     setCopied(id)
     setTimeout(() => setCopied(null), 2000)
   }
-
+ 
   async function downloadFile(url, filename) {
     const response = await fetch(url)
     const blob = await response.blob()
@@ -55,11 +84,11 @@ export default function AgentSetup() {
     a.download = filename
     a.click()
     URL.revokeObjectURL(blobUrl)
-}
-
+  }
+ 
   return (
     <div className="animate-in" style={{ maxWidth: 760 }}>
-
+ 
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <button
@@ -77,18 +106,18 @@ export default function AgentSetup() {
           Results are pushed securely to your NetGuard dashboard.
         </p>
       </div>
-
+ 
       {/* How it works */}
       <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
         <div className="card-title" style={{ marginBottom: 16 }}>HOW IT WORKS</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
           {[
             { icon: '💻', label: 'Your Machine' },
-            { icon: '→', label: null },
+            { icon: '→',  label: null },
             { icon: '🔍', label: 'ARP + Port Scan' },
-            { icon: '→', label: null },
+            { icon: '→',  label: null },
             { icon: '☁️', label: 'NetGuard Cloud' },
-            { icon: '→', label: null },
+            { icon: '→',  label: null },
             { icon: '📊', label: 'Your Dashboard' },
           ].map((item, i) => (
             item.label === null
@@ -102,18 +131,75 @@ export default function AgentSetup() {
           ))}
         </div>
       </div>
-
-      {/* Steps */}
+ 
+      {/* ── OS SELECTOR ── */}
+      <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
+        <div className="card-title" style={{ marginBottom: 14 }}>SELECT YOUR OPERATING SYSTEM</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {OS_OPTIONS.map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setOs(opt.id)}
+              style={{
+                flex: 1,
+                padding: '12px 8px',
+                borderRadius: 'var(--radius)',
+                border: os === opt.id ? '1px solid var(--green)' : '1px solid var(--border)',
+                background: os === opt.id ? 'rgba(0,229,160,0.08)' : 'var(--bg)',
+                color: os === opt.id ? 'var(--green)' : 'var(--muted)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                letterSpacing: 1,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: os === opt.id ? '0 0 12px rgba(0,229,160,0.1)' : 'none',
+              }}
+            >
+              <span style={{ fontSize: 22 }}>{opt.icon}</span>
+              {opt.label.toUpperCase()}
+              {os === opt.id && (
+                <span style={{ fontSize: 8, color: 'var(--green)', letterSpacing: 2 }}>● SELECTED</span>
+              )}
+            </button>
+          ))}
+        </div>
+ 
+        {/* OS-specific tip */}
+        <div style={{
+          marginTop: 14,
+          padding: '10px 14px',
+          background: 'rgba(0,229,160,0.04)',
+          border: '1px solid rgba(0,229,160,0.15)',
+          borderRadius: 6,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10,
+          color: 'var(--muted)',
+          letterSpacing: 0.5,
+          lineHeight: 1.7,
+        }}>
+          {os === 'windows' && '⚠ Windows: Run PowerShell or CMD as Administrator. Right-click the icon → "Run as Administrator".'}
+          {os === 'linux'   && '⚠ Linux: sudo is required for ARP scanning (raw socket access). Commands below use python3 and pip3.'}
+          {os === 'mac'     && '⚠ macOS: sudo is required for ARP scanning (raw socket access). Make sure Homebrew is installed for Nmap.'}
+        </div>
+      </div>
+ 
+      {/* Steps — re-render when OS changes */}
       <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
         <div className="card-title" style={{ marginBottom: 20 }}>SETUP STEPS</div>
-        {STEPS.map((step, i) => (
-          <div key={i} style={{ display: 'flex', gap: 16, marginBottom: i < STEPS.length - 1 ? 24 : 0 }}>
+        {steps.map((step, i) => (
+          <div key={`${os}-${i}`} style={{ display: 'flex', gap: 16, marginBottom: i < steps.length - 1 ? 28 : 0 }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, color: 'var(--green)', opacity: 0.4, flexShrink: 0, lineHeight: 1 }}>{step.num}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text)', letterSpacing: 1, marginBottom: 6 }}>{step.title}</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: step.code ? 10 : 0 }}>{step.desc}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 8 }}>{step.desc}</div>
+ 
+              {/* Main code block */}
               {step.code && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: step.extraCode || step.note ? 8 : 0 }}>
                   <code style={{
                     background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4,
                     padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11,
@@ -122,13 +208,40 @@ export default function AgentSetup() {
                     {step.code}
                   </code>
                   <button
-                    onClick={() => copyCode(step.code, i)}
+                    onClick={() => copyCode(step.code, `${os}-${i}-main`)}
                     style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 10px', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}
                   >
-                    {copied === i ? '✓ COPIED' : 'COPY'}
+                    {copied === `${os}-${i}-main` ? '✓ COPIED' : 'COPY'}
                   </button>
                 </div>
               )}
+ 
+              {/* Extra code block (e.g. apt install nmap) */}
+              {step.extraCode && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: step.note ? 8 : 0 }}>
+                  <code style={{
+                    background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4,
+                    padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11,
+                    color: 'var(--green)', flex: 1,
+                  }}>
+                    {step.extraCode}
+                  </code>
+                  <button
+                    onClick={() => copyCode(step.extraCode, `${os}-${i}-extra`)}
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 10px', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    {copied === `${os}-${i}-extra` ? '✓ COPIED' : 'COPY'}
+                  </button>
+                </div>
+              )}
+ 
+              {/* Inline tip/note */}
+              {step.note && (
+                <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', opacity: 0.75, marginBottom: step.link ? 6 : 0 }}>
+                  ℹ {step.note}
+                </div>
+              )}
+ 
               {step.link && (
                 <a href={step.link.url} target="_blank" rel="noopener noreferrer"
                   style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--green)', textDecoration: 'none', letterSpacing: 1 }}>
@@ -139,7 +252,7 @@ export default function AgentSetup() {
           </div>
         ))}
       </div>
-
+ 
       {/* Safety notice */}
       <div style={{
         background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.2)',
@@ -164,12 +277,11 @@ export default function AgentSetup() {
           ))}
         </div>
       </div>
-
+ 
       {/* Consent + Download */}
       <div className="card" style={{ padding: '20px 24px' }}>
         <div className="card-title" style={{ marginBottom: 16 }}>DOWNLOAD AGENT</div>
-
-        {/* Checkbox */}
+ 
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', marginBottom: 20 }}>
           <input
             type="checkbox"
@@ -183,8 +295,7 @@ export default function AgentSetup() {
             run in the background unless I explicitly start it.
           </span>
         </label>
-
-        {/* Download buttons */}
+ 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
             className="btn-primary"
@@ -211,7 +322,7 @@ export default function AgentSetup() {
             ↗ VIEW SOURCE ON GITHUB
           </a>
         </div>
-
+ 
         {!agreed && (
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 10, letterSpacing: 1 }}>
             ↑ Check the box above to enable download
