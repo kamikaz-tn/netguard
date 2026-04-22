@@ -67,13 +67,11 @@ export const auth = {
         turnstile_token: turnstileToken,
       }),
     });
-    token.set(data.access_token);
+    auth_state.setUsername(data.username);  // ← fixed
     return data;
   },
  
   async login(username, password, turnstileToken) {
-    // Login uses form encoding (OAuth2 standard)
-    // Turnstile token is passed via client_id field
     const form = new URLSearchParams({
       username,
       password,
@@ -83,10 +81,11 @@ export const auth = {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
+      credentials: "include",  // ← needed for cookie
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || "Login failed");
-    token.set(data.access_token);
+    auth_state.setUsername(data.username);  // ← fixed
     return data;
   },
  
