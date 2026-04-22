@@ -16,6 +16,15 @@ export default function Layout() {
   const location = useLocation()
   const [time, setTime] = useState(new Date())
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem('ng_theme') || 'dark'
+  )
+ 
+  // Apply theme to document root
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('ng_theme', theme)
+  }, [theme])
  
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000)
@@ -27,14 +36,17 @@ export default function Layout() {
   }, [location.pathname])
  
   async function handleLogout() {
-    await auth.logout()   // clears httpOnly cookie server-side
+    await auth.logout()
     navigate('/login')
   }
  
-  // Username stored in sessionStorage (not the JWT — just the display name)
-  const username = auth_state.getUsername() || 'user'
+  function toggleTheme() {
+    setTheme(t => t === 'dark' ? 'light' : 'dark')
+  }
  
+  const username = auth_state.getUsername() || 'user'
   const currentNav = NAV.find(n => n.to === location.pathname)
+  const isDark = theme === 'dark'
  
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -104,6 +116,17 @@ export default function Layout() {
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginBottom: 8 }}>
             {time.toLocaleTimeString()}
           </div>
+ 
+          {/* Theme toggle */}
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{ width: '100%', marginBottom: 8, justifyContent: 'center' }}
+          >
+            {isDark ? '☀ LIGHT MODE' : '☾ DARK MODE'}
+          </button>
+ 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text)' }}>
               {username}
@@ -149,13 +172,24 @@ export default function Layout() {
             {currentNav ? `${currentNav.icon} ${currentNav.label.toUpperCase()}` : 'NETGUARD'}
           </div>
  
-          <button
-            className="btn-ghost"
-            style={{ fontSize: 9, padding: '4px 10px' }}
-            onClick={handleLogout}
-          >
-            EXIT
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {/* Theme toggle on mobile */}
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              style={{ padding: '4px 8px', fontSize: 12 }}
+              title={isDark ? 'Light mode' : 'Dark mode'}
+            >
+              {isDark ? '☀' : '☾'}
+            </button>
+            <button
+              className="btn-ghost"
+              style={{ fontSize: 9, padding: '4px 10px' }}
+              onClick={handleLogout}
+            >
+              EXIT
+            </button>
+          </div>
         </div>
  
         {/* Main content */}
