@@ -23,9 +23,26 @@ export const auth_state = {
   getUsername:  ()  => _username,
   setUsername:  (u) => { _username = u; sessionStorage.setItem("ng_username", u); },
   clearUsername: () => { _username = null; sessionStorage.removeItem("ng_username"); },
-  // isLoggedIn: try to infer from username presence; cookie is validated server-side
   isLoggedIn:   ()  => !!_username,
 };
+ 
+// ── Error parser — never expose raw FastAPI validation JSON to the user ───────
+function parseError(data) {
+  // FastAPI validation errors come as an array of objects
+  if (Array.isArray(data.detail)) {
+    return data.detail.map(e => {
+      const field = e.loc?.[e.loc.length - 1] ?? '';
+      const msg = e.msg
+        .replace('Value error, ', '')
+        .replace('value_error, ', '');
+      return field ? `${field}: ${msg}` : msg;
+    }).join(' · ');
+  }
+  // Plain string error
+  if (typeof data.detail === 'string') return data.detail;
+  // Fallback
+  return 'Something went wrong. Please try again.';
+}
  
 // ── Base fetch wrapper ────────────────────────────────────────────────────────
 async function apiFetch(path, options = {}) {
@@ -45,8 +62,7 @@ async function apiFetch(path, options = {}) {
   const data = await response.json().catch(() => ({}));
  
   if (!response.ok) {
-    const message = data.detail || `API error ${response.status}`;
-    throw new Error(typeof message === "string" ? message : JSON.stringify(message));
+    throw new Error(parseError(data));
   }
  
   return data;
@@ -67,7 +83,7 @@ export const auth = {
         turnstile_token: turnstileToken,
       }),
     });
-    auth_state.setUsername(data.username);  // ← fixed
+    auth_state.setUsername(data.username);
     return data;
   },
  
@@ -81,16 +97,15 @@ export const auth = {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
-      credentials: "include",  // ← needed for cookie
+      credentials: "include",
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Login failed");
-    auth_state.setUsername(data.username);  // ← fixed
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(parseError(data));
+    auth_state.setUsername(data.username);
     return data;
   },
  
   async logout() {
-    // Ask backend to clear the cookie
     await apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     auth_state.clearUsername();
   },
@@ -223,7 +238,6 @@ export const alerts = {
  *   - it never touches localStorage/sessionStorage
  */
 export async function createAlertSocket(userId, onMessage, onConnect, onDisconnect) {
-  // Get a short-lived websocket ticket from the backend
   let ticket;
   try {
     const res = await apiFetch("/api/auth/ws-ticket");
