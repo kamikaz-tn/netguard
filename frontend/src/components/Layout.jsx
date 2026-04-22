@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { auth } from '../services/api.js'
+import { auth, auth_state } from '../services/api.js'
  
 const NAV = [
   { to: '/overview',    label: 'Overview',     icon: '◈' },
@@ -22,26 +22,18 @@ export default function Layout() {
     return () => clearInterval(t)
   }, [])
  
-  // Close sidebar on route change (mobile)
   useEffect(() => {
     setSidebarOpen(false)
   }, [location.pathname])
  
-  function handleLogout() {
-    auth.logout()
+  async function handleLogout() {
+    await auth.logout()   // clears httpOnly cookie server-side
     navigate('/login')
   }
  
-  const username = (() => {
-    try {
-      const token = localStorage.getItem('ng_token')
-      if (!token) return 'user'
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      return payload.username || 'user'
-    } catch { return 'user' }
-  })()
+  // Username stored in sessionStorage (not the JWT — just the display name)
+  const username = auth_state.getUsername() || 'user'
  
-  // Current page label for mobile topbar
   const currentNav = NAV.find(n => n.to === location.pathname)
  
   return (
@@ -128,7 +120,7 @@ export default function Layout() {
  
         {/* Mobile top bar */}
         <div className="mobile-topbar" style={{
-          display: 'none', // overridden to flex by media query
+          display: 'none',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '10px 16px',
@@ -136,7 +128,6 @@ export default function Layout() {
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
         }}>
-          {/* Hamburger */}
           <button
             className="hamburger"
             onClick={() => setSidebarOpen(o => !o)}
@@ -154,12 +145,10 @@ export default function Layout() {
             ☰
           </button>
  
-          {/* Page title */}
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--green)', letterSpacing: 2 }}>
             {currentNav ? `${currentNav.icon} ${currentNav.label.toUpperCase()}` : 'NETGUARD'}
           </div>
  
-          {/* Logout shortcut */}
           <button
             className="btn-ghost"
             style={{ fontSize: 9, padding: '4px 10px' }}

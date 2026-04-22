@@ -2,159 +2,164 @@
  * netguard/frontend/src/services/api.js
  * ────────────────────────────────────────
  * Centralized API client for all backend calls.
- * Handles auth tokens, error formatting, and WebSocket setup.
+ *
+ * Security: JWT is stored in an httpOnly cookie set by the backend.
+ * The frontend NEVER touches the token directly — no localStorage,
+ * no sessionStorage. This eliminates XSS token exfiltration risk.
+ *
+ * All fetch() calls use credentials: "include" so the browser
+ * automatically sends the cookie on every request.
  */
-
+ 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const WS_URL   = import.meta.env.VITE_WS_URL  || "ws://localhost:8000";
-
-// ── Token management ──────────────────────────────────────────────────────────
-export const token = {
-  get: ()        => localStorage.getItem("ng_token"),
-  set: (t)       => localStorage.setItem("ng_token", t),
-  clear: ()      => localStorage.removeItem("ng_token"),
-  isLoggedIn: () => !!localStorage.getItem("ng_token"),
+ 
+// ── Auth state (in-memory only — not persisted to storage) ───────────────────
+// We only store the username for display purposes.
+// The actual JWT lives exclusively in the httpOnly cookie.
+let _username = sessionStorage.getItem("ng_username") || null;
+ 
+export const auth_state = {
+  getUsername:  ()  => _username,
+  setUsername:  (u) => { _username = u; sessionStorage.setItem("ng_username", u); },
+  clearUsername: () => { _username = null; sessionStorage.removeItem("ng_username"); },
+  // isLoggedIn: try to infer from username presence; cookie is validated server-side
+  isLoggedIn:   ()  => !!_username,
 };
-
+ 
 // ── Base fetch wrapper ────────────────────────────────────────────────────────
 async function apiFetch(path, options = {}) {
   const headers = {
     "Content-Type": "application/json",
-    ...(token.get() ? { Authorization: `Bearer ${token.get()}` } : {}),
     ...options.headers,
   };
-
+ 
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
+    credentials: "include",   // ← sends httpOnly cookie automatically
   });
-
-  if (response.status === 204) return null;   // No content
-
+ 
+  if (response.status === 204) return null;
+ 
   const data = await response.json().catch(() => ({}));
-
+ 
   if (!response.ok) {
     const message = data.detail || `API error ${response.status}`;
     throw new Error(typeof message === "string" ? message : JSON.stringify(message));
   }
-
+ 
   return data;
 }
-
+ 
 // ══════════════════════════════════════════════════════════════════════════════
 // AUTH
 // ══════════════════════════════════════════════════════════════════════════════
-
+ 
 export const auth = {
   async register(username, email, password) {
+    // Backend sets httpOnly cookie in the response — we just read the username
     const data = await apiFetch("/api/auth/register", {
       method: "POST",
       body: JSON.stringify({ username, email, password }),
     });
-    token.set(data.access_token);
+    auth_state.setUsername(data.username);
     return data;
   },
-
+ 
   async login(username, password) {
-    // Login uses form encoding (OAuth2 standard)
     const form = new URLSearchParams({ username, password });
     const response = await fetch(`${BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
+      credentials: "include",   // ← cookie is set by server in this response
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || "Login failed");
-    token.set(data.access_token);
+    auth_state.setUsername(data.username);
     return data;
   },
-
-  logout() {
-    token.clear();
+ 
+  async logout() {
+    // Ask backend to clear the cookie
+    await apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    auth_state.clearUsername();
   },
+ 
+  isLoggedIn: () => auth_state.isLoggedIn(),
 };
-
+ 
 // ══════════════════════════════════════════════════════════════════════════════
 // NETWORK SCANNING
 // ══════════════════════════════════════════════════════════════════════════════
-
+ 
 export const scan = {
-  /** Trigger a scan from the server side (same LAN as backend). */
   async start(networkRange = "192.168.1.0/24", scanType = "full") {
     return apiFetch("/api/scan/start", {
       method: "POST",
       body: JSON.stringify({ network_range: networkRange, scan_type: scanType }),
     });
   },
-
-  /** Get the N most recent scans. */
+ 
   async history(limit = 10) {
     return apiFetch(`/api/scan/results?limit=${limit}`);
   },
-
-  /** Get full details of one scan including devices + findings. */
+ 
   async detail(scanId) {
     return apiFetch(`/api/scan/${scanId}`);
   },
 };
-
+ 
 // ══════════════════════════════════════════════════════════════════════════════
 // DEVICE MANAGEMENT
 // ══════════════════════════════════════════════════════════════════════════════
-
+ 
 export const devices = {
   async listTrusted() {
     return apiFetch("/api/devices/trusted");
   },
-
+ 
   async trust(macAddress, label = "") {
     return apiFetch("/api/devices/trust", {
       method: "POST",
       body: JSON.stringify({ mac_address: macAddress, label }),
     });
   },
-
+ 
   async untrust(macAddress) {
     return apiFetch(`/api/devices/trust/${encodeURIComponent(macAddress)}`, {
       method: "DELETE",
     });
   },
-
+ 
   async kick(macAddress) {
     return apiFetch(`/api/devices/kick?mac_address=${encodeURIComponent(macAddress)}`, {
       method: "POST",
     });
   },
 };
-
+ 
 // ══════════════════════════════════════════════════════════════════════════════
 // PASSWORD CHECK (HIBP k-anonymity)
 // ══════════════════════════════════════════════════════════════════════════════
-
+ 
 export const password = {
-  /**
-   * Check if a password has been pwned.
-   * All SHA-1 hashing and comparison happens here in the browser.
-   * Only the first 5 chars of the hash ever leave this function.
-   */
   async check(plainPassword) {
-    // Step 1: SHA-1 hash in the browser
     const encoder = new TextEncoder();
     const data = encoder.encode(plainPassword);
     const hashBuffer = await crypto.subtle.digest("SHA-1", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-
+ 
     const prefix = hash.slice(0, 5);
     const suffix = hash.slice(5);
-
-    // Step 2: Send only the prefix to backend (which forwards to HIBP)
+ 
     const result = await apiFetch("/api/password/check", {
       method: "POST",
       body: JSON.stringify({ hash_prefix: prefix }),
     });
-
-    // Step 3: Check locally if our suffix is in the response
+ 
     const lines = (result.message || "").split("\n");
     for (const line of lines) {
       const [responseSuffix, countStr] = line.split(":");
@@ -162,25 +167,20 @@ export const password = {
         return { pwned: true, count: parseInt(countStr, 10) };
       }
     }
-
+ 
     return { pwned: false, count: 0 };
   },
-
+ 
   async tips() {
     return apiFetch("/api/password/tips");
   },
 };
-
+ 
 // ══════════════════════════════════════════════════════════════════════════════
 // AI CHAT
 // ══════════════════════════════════════════════════════════════════════════════
-
+ 
 export const chat = {
-  /**
-   * Send conversation to AI advisor.
-   * messages: [{role: "user"|"assistant", content: "..."}]
-   * scanContext: optional object from latest scan
-   */
   async send(messages, scanContext = null) {
     return apiFetch("/api/chat/message", {
       method: "POST",
@@ -188,41 +188,53 @@ export const chat = {
     });
   },
 };
-
+ 
 // ══════════════════════════════════════════════════════════════════════════════
 // ALERTS
 // ══════════════════════════════════════════════════════════════════════════════
-
+ 
 export const alerts = {
   async list(unreadOnly = false, limit = 50) {
     return apiFetch(`/api/alerts?unread_only=${unreadOnly}&limit=${limit}`);
   },
-
+ 
   async markAllRead() {
     return apiFetch("/api/alerts/read-all", { method: "PATCH" });
   },
 };
-
+ 
 // ══════════════════════════════════════════════════════════════════════════════
 // WEBSOCKET — Real-time alerts
 // ══════════════════════════════════════════════════════════════════════════════
-
-export function createAlertSocket(userId, onMessage, onConnect, onDisconnect) {
-  const jwt = token.get();
-  if (!jwt) throw new Error("No auth token — log in first");
-
-  const ws = new WebSocket(`${WS_URL}/ws/${userId}?token=${jwt}`);
-
+ 
+/**
+ * For WebSocket, browsers can't send cookies on the initial handshake
+ * when using a different origin (CORS). We ask the backend for a short-lived
+ * WS ticket instead, which is safe to put in the URL query param because:
+ *   - it's single-use / short TTL (60s)
+ *   - it never touches localStorage/sessionStorage
+ */
+export async function createAlertSocket(userId, onMessage, onConnect, onDisconnect) {
+  // Get a short-lived websocket ticket from the backend
+  let ticket;
+  try {
+    const res = await apiFetch("/api/auth/ws-ticket");
+    ticket = res.ticket;
+  } catch {
+    throw new Error("Could not get WS ticket — are you logged in?");
+  }
+ 
+  const ws = new WebSocket(`${WS_URL}/ws/${userId}?token=${ticket}`);
+ 
   ws.onopen    = () => { console.log("NetGuard WS connected"); onConnect?.(); };
   ws.onmessage = (e) => { onMessage?.(JSON.parse(e.data)); };
   ws.onclose   = () => { onDisconnect?.(); };
   ws.onerror   = (e) => { console.error("NetGuard WS error:", e); };
-
-  // Keep-alive ping every 30s
+ 
   const pingInterval = setInterval(() => {
     if (ws.readyState === WebSocket.OPEN) ws.send("ping");
   }, 30_000);
-
+ 
   return {
     close: () => {
       clearInterval(pingInterval);

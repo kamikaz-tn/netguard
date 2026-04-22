@@ -15,15 +15,12 @@ const KICK_STATUS_MAP = {
   failed:  { color: 'var(--red)',   label: '✗ Kick failed' },
 }
  
-// ── API helpers ───────────────────────────────────────────────────────────────
+// ── API helpers — use credentials:include (cookie auth) ───────────────────────
 async function kickDevice(macAddress, targetIp) {
-  const token = localStorage.getItem('ng_token')
   const res = await fetch(`${BASE_URL}/api/devices/kick`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',   // ← sends httpOnly cookie
     body: JSON.stringify({ mac_address: macAddress, target_ip: targetIp || null }),
   })
   if (res.status === 409) {
@@ -35,9 +32,8 @@ async function kickDevice(macAddress, targetIp) {
 }
  
 async function fetchKicks() {
-  const token = localStorage.getItem('ng_token')
   const res = await fetch(`${BASE_URL}/api/devices/kicks`, {
-    headers: { 'Authorization': `Bearer ${token}` },
+    credentials: 'include',   // ← sends httpOnly cookie
   })
   if (!res.ok) return []
   return res.json()
@@ -100,11 +96,10 @@ export default function Devices() {
   const [loading, setLoading]           = useState(true)
   const [actionMsg, setActionMsg]       = useState('')
   const [scanInfo, setScanInfo]         = useState(null)
-  const [kickStatuses, setKickStatuses] = useState({})  // mac → status string
+  const [kickStatuses, setKickStatuses] = useState({})
  
   useEffect(() => { loadData() }, [])
  
-  // Poll kick statuses every 5s while any kick is pending
   useEffect(() => {
     const hasPending = Object.values(kickStatuses).some(s => s === 'pending')
     if (!hasPending) return
@@ -124,11 +119,10 @@ export default function Devices() {
       const macs = trusted.map(d => d.mac_address.toUpperCase())
       setTrustedMacs(macs)
  
-      // Build kick status map: mac → most recent status
       const ksMap = {}
       for (const k of kicks) {
         const mac = k.mac_address.toUpperCase()
-        if (!ksMap[mac]) ksMap[mac] = k.status  // already sorted by created_at desc
+        if (!ksMap[mac]) ksMap[mac] = k.status
       }
       setKickStatuses(ksMap)
  
@@ -189,7 +183,6 @@ export default function Devices() {
  
   return (
     <div className="animate-in">
-      {/* Header */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--text)', letterSpacing: 2 }}>CONNECTED DEVICES</h1>
@@ -201,7 +194,6 @@ export default function Devices() {
         <button className="btn-primary" onClick={loadData}>↻ REFRESH</button>
       </div>
  
-      {/* Summary badges */}
       {deviceList.length > 0 && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
           <span className="badge badge-danger">{threatCount} Threat{threatCount !== 1 ? 's' : ''}</span>
@@ -210,7 +202,6 @@ export default function Devices() {
         </div>
       )}
  
-      {/* Kick info banner */}
       <div style={{
         background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.2)',
         borderRadius: 'var(--radius)', padding: '10px 16px', marginBottom: 16,
@@ -247,7 +238,6 @@ export default function Devices() {
           </div>
         ) : (
           <>
-            {/* Desktop table */}
             <div className="devices-table table-scroll">
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 650 }}>
                 <thead>
@@ -306,7 +296,6 @@ export default function Devices() {
               </table>
             </div>
  
-            {/* Mobile cards */}
             <div className="device-card-mobile">
               {deviceList.map((device, i) => (
                 <DeviceCard

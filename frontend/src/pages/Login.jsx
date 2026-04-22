@@ -20,6 +20,8 @@ export default function Login() {
       } else {
         await auth.register(form.username, form.email, form.password)
       }
+      // JWT is now in an httpOnly cookie set by the server.
+      // Username is stored in sessionStorage via auth_state (set inside auth.login/register).
       navigate('/overview')
     } catch (err) {
       setError(err.message)
