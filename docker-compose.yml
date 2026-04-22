@@ -27,11 +27,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - GEMINI_API_KEY=AIzaSyB4CJd416T0w24MP1ZNv9t_0Wcu1PaMfHE   # reads from shell or .env
-      - SECRET_KEY=netguard_super_secret_key_2026
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=sqlite+aiosqlite:///./data/netguard.db
       - FRONTEND_ORIGIN=http://localhost:5173
-      - AGENT_SECRET=netguard_agent_secret_2026
+      - AGENT_SECRET=${AGENT_SECRET}
     volumes:
       - ./backend:/app
       - netguard-db:/app/datadocker compose up --build backend
