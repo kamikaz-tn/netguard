@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { auth } from '../services/api.js'   // ← FIX 1: was missing
  
 // ── OS-specific config ─────────────────────────────────────────────────────────
 const OS_OPTIONS = [
@@ -45,9 +46,7 @@ function getSteps(os) {
       desc: isWin
         ? 'Run PowerShell or Command Prompt as Administrator, then run:'
         : 'ARP scanning requires root access. Run with sudo:',
-      code: isWin
-        ? 'python agent.py --scan'
-        : `sudo python3 agent.py --scan`,
+      code: isWin ? 'python agent.py --scan' : 'sudo python3 agent.py --scan',
       note: isWin
         ? 'Right-click PowerShell → "Run as Administrator" before running the command.'
         : os === 'linux'
@@ -58,7 +57,7 @@ function getSteps(os) {
   ]
 }
  
-const AGENT_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/refs/heads/main/agent/agent.py'
+const AGENT_URL        = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/refs/heads/main/agent/agent.py'
 const REQUIREMENTS_URL = 'https://raw.githubusercontent.com/kamikaz-tn/netguard/refs/heads/main/agent/requirements.txt'
  
 export default function AgentSetup() {
@@ -66,6 +65,7 @@ export default function AgentSetup() {
   const [agreed, setAgreed]   = useState(false)
   const [copied, setCopied]   = useState(null)
   const [os, setOs]           = useState('windows')
+  const [envError, setEnvError] = useState('')
  
   const steps = getSteps(os)
  
@@ -82,25 +82,42 @@ export default function AgentSetup() {
     const a = document.createElement('a')
     a.href = blobUrl
     a.download = filename
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
     URL.revokeObjectURL(blobUrl)
   }
  
+  // FIX 2: renamed to netguard.env (browsers block dotfiles)
+  // FIX 3: removed accidental leading spaces in template literal
+  // FIX 4: added document.body.appendChild for cross-browser support
   async function downloadEnv() {
-    const me = await auth.me()
-    const content = `BACKEND_URL=https://netguard-production-4f1d.up.railway.app
-  AGENT_SECRET=netguard_agent_secret_2024
-  USER_ID=${me.user_id}
-  NETWORK_RANGE=
-  SCAN_TYPE=full`
-
-    const blob = new Blob([content], { type: 'text/plain' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = '.env'
-    a.click()
+    setEnvError('')
+    try {
+      const me = await auth.me()
+      const content = [
+        `BACKEND_URL=https://netguard-production-4f1d.up.railway.app`,
+        `AGENT_SECRET=netguard_agent_secret_2024`,
+        `USER_ID=${me.user_id}`,
+        `NETWORK_RANGE=`,
+        `SCAN_TYPE=full`,
+      ].join('\n')
+ 
+      const blob = new Blob([content], { type: 'text/plain' })
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = 'netguard.env'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('downloadEnv failed:', err)
+      setEnvError('Could not fetch your user ID. Make sure you are logged in.')
+    }
   }
-
+ 
   return (
     <div className="animate-in" style={{ maxWidth: 760 }}>
  
@@ -147,7 +164,7 @@ export default function AgentSetup() {
         </div>
       </div>
  
-      {/* ── OS SELECTOR ── */}
+      {/* OS SELECTOR */}
       <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
         <div className="card-title" style={{ marginBottom: 14 }}>SELECT YOUR OPERATING SYSTEM</div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -156,21 +173,14 @@ export default function AgentSetup() {
               key={opt.id}
               onClick={() => setOs(opt.id)}
               style={{
-                flex: 1,
-                padding: '12px 8px',
+                flex: 1, padding: '12px 8px',
                 borderRadius: 'var(--radius)',
                 border: os === opt.id ? '1px solid var(--green)' : '1px solid var(--border)',
                 background: os === opt.id ? 'rgba(0,229,160,0.08)' : 'var(--bg)',
                 color: os === opt.id ? 'var(--green)' : 'var(--muted)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 11,
-                letterSpacing: 1,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
+                fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1,
+                cursor: 'pointer', transition: 'all 0.15s',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                 boxShadow: os === opt.id ? '0 0 12px rgba(0,229,160,0.1)' : 'none',
               }}
             >
@@ -183,18 +193,11 @@ export default function AgentSetup() {
           ))}
         </div>
  
-        {/* OS-specific tip */}
         <div style={{
-          marginTop: 14,
-          padding: '10px 14px',
-          background: 'rgba(0,229,160,0.04)',
-          border: '1px solid rgba(0,229,160,0.15)',
-          borderRadius: 6,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 10,
-          color: 'var(--muted)',
-          letterSpacing: 0.5,
-          lineHeight: 1.7,
+          marginTop: 14, padding: '10px 14px',
+          background: 'rgba(0,229,160,0.04)', border: '1px solid rgba(0,229,160,0.15)',
+          borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 10,
+          color: 'var(--muted)', letterSpacing: 0.5, lineHeight: 1.7,
         }}>
           {os === 'windows' && '⚠ Windows: Run PowerShell or CMD as Administrator. Right-click the icon → "Run as Administrator".'}
           {os === 'linux'   && '⚠ Linux: sudo is required for ARP scanning (raw socket access). Commands below use python3 and pip3.'}
@@ -202,7 +205,7 @@ export default function AgentSetup() {
         </div>
       </div>
  
-      {/* Steps — re-render when OS changes */}
+      {/* Steps */}
       <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
         <div className="card-title" style={{ marginBottom: 20 }}>SETUP STEPS</div>
         {steps.map((step, i) => (
@@ -212,14 +215,9 @@ export default function AgentSetup() {
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text)', letterSpacing: 1, marginBottom: 6 }}>{step.title}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 8 }}>{step.desc}</div>
  
-              {/* Main code block */}
               {step.code && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: step.extraCode || step.note ? 8 : 0 }}>
-                  <code style={{
-                    background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4,
-                    padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11,
-                    color: 'var(--green)', flex: 1,
-                  }}>
+                  <code style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', flex: 1 }}>
                     {step.code}
                   </code>
                   <button
@@ -231,14 +229,9 @@ export default function AgentSetup() {
                 </div>
               )}
  
-              {/* Extra code block (e.g. apt install nmap) */}
               {step.extraCode && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: step.note ? 8 : 0 }}>
-                  <code style={{
-                    background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4,
-                    padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11,
-                    color: 'var(--green)', flex: 1,
-                  }}>
+                  <code style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', flex: 1 }}>
                     {step.extraCode}
                   </code>
                   <button
@@ -250,7 +243,6 @@ export default function AgentSetup() {
                 </div>
               )}
  
-              {/* Inline tip/note */}
               {step.note && (
                 <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', opacity: 0.75, marginBottom: step.link ? 6 : 0 }}>
                   ℹ {step.note}
@@ -332,9 +324,9 @@ export default function AgentSetup() {
             className="btn-ghost"
             disabled={!agreed}
             onClick={downloadEnv}
-            style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed' }}
+            style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}
           >
-            ↓ DOWNLOAD .env
+            ↓ DOWNLOAD netguard.env
           </button>
           <a
             href="https://github.com/kamikaz-tn/netguard/tree/main/agent"
@@ -345,6 +337,24 @@ export default function AgentSetup() {
             ↗ VIEW SOURCE ON GITHUB
           </a>
         </div>
+ 
+        {/* Rename hint */}
+        {agreed && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 12, letterSpacing: 0.5, lineHeight: 1.8 }}>
+            ℹ After downloading, rename{' '}
+            <span style={{ color: 'var(--green)' }}>netguard.env</span>
+            {' → '}
+            <span style={{ color: 'var(--green)' }}>.env</span>
+            {' '}and place it in the same folder as agent.py
+          </div>
+        )}
+ 
+        {/* Error */}
+        {envError && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--red)', marginTop: 10, letterSpacing: 0.5 }}>
+            ⚠ {envError}
+          </div>
+        )}
  
         {!agreed && (
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 10, letterSpacing: 1 }}>
