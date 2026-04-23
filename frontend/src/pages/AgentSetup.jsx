@@ -97,7 +97,7 @@ export default function AgentSetup() {
       const me = await auth.me()
       const content = [
         `BACKEND_URL=https://netguard-production-4f1d.up.railway.app`,
-        `AGENT_SECRET=netguard_agent_secret_2024`,
+        `AGENT_SECRET=netguard_agent_secret_2026`,
         `USER_ID=${me.user_id}`,
         `NETWORK_RANGE=`,
         `SCAN_TYPE=full`,

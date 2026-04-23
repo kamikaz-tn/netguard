@@ -138,5 +138,5 @@ async def get_ws_ticket(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/me")
-async def get_me(current_user = Depends(get_current_user)):
-    return {"user_id": current_user.id, "username": current_user.username}
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return {"user_id": int(current_user["user_id"]), "username": current_user["username"]}
