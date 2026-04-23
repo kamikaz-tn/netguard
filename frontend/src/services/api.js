@@ -109,6 +109,10 @@ export const auth = {
     await apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     auth_state.clearUsername();
   },
+
+    async me() {
+    return apiFetch("/api/auth/me")
+  },
  
   isLoggedIn: () => auth_state.isLoggedIn(),
 };

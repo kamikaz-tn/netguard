@@ -135,3 +135,8 @@ async def get_ws_ticket(current_user: dict = Depends(get_current_user)):
         expires_delta=timedelta(seconds=60),
     )
     return {"ticket": ws_token}
+
+
+@router.get("/me")
+async def get_me(current_user = Depends(get_current_user)):
+    return {"user_id": current_user.id, "username": current_user.username}

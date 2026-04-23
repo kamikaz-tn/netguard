@@ -86,6 +86,21 @@ export default function AgentSetup() {
     URL.revokeObjectURL(blobUrl)
   }
  
+  async function downloadEnv() {
+    const me = await auth.me()
+    const content = `BACKEND_URL=https://netguard-production-4f1d.up.railway.app
+  AGENT_SECRET=netguard_agent_secret_2024
+  USER_ID=${me.user_id}
+  NETWORK_RANGE=
+  SCAN_TYPE=full`
+
+    const blob = new Blob([content], { type: 'text/plain' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = '.env'
+    a.click()
+  }
+
   return (
     <div className="animate-in" style={{ maxWidth: 760 }}>
  
@@ -312,6 +327,14 @@ export default function AgentSetup() {
             style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}
           >
             ↓ DOWNLOAD requirements.txt
+          </button>
+          <button
+            className="btn-ghost"
+            disabled={!agreed}
+            onClick={downloadEnv}
+            style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed' }}
+          >
+            ↓ DOWNLOAD .env
           </button>
           <a
             href="https://github.com/kamikaz-tn/netguard/tree/main/agent"
