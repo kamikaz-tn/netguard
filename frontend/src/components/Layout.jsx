@@ -9,6 +9,7 @@ const NAV = [
   { to: '/password',    label: 'Pwned Check', icon: '◆', code: 'PWD' },
   { to: '/ai',          label: 'AI Advisor',  icon: '◇', code: 'AIA' },
   { to: '/agent-setup', label: 'Run Scan',    icon: '▶', code: 'SCN' },
+  { to: '/profile',     label: 'Profile',     icon: '◎', code: 'PRF' },
 ]
  
 // Only shown in dark mode — invisible / ugly in light

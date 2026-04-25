@@ -12,6 +12,7 @@ import PwnedCheck  from './pages/PwnedCheck.jsx'
 import AIAdvisor   from './pages/AIAdvisor.jsx'
 import AgentSetup from './pages/AgentSetup.jsx'
 import { auth_state } from './services/api.js'
+import Profile from './pages/Profile.jsx'
  
 /**
  * PrivateRoute — no longer reads localStorage.
@@ -38,6 +39,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="password"  element={<PwnedCheck />} />
           <Route path="ai"        element={<AIAdvisor />} />
           <Route path="/agent-setup" element={<AgentSetup />} />
+          <Route path="/profile" element={<Profile />} />
         </Route>
       </Routes>
     </BrowserRouter>
