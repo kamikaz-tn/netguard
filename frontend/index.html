@@ -3,13 +3,57 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ 
+    <!-- Primary SEO -->
     <title>NetGuard — Network Security Monitor</title>
+    <meta name="description" content="NetGuard is a full-stack network security monitor that scans your local network for threats, detects suspicious ports, and gives AI-powered remediation advice in real time." />
+    <meta name="keywords" content="network security, port scanner, ARP scan, threat detection, network monitor, cybersecurity dashboard, Nmap, local network scanner" />
+    <meta name="author" content="NetGuard Security" />
+    <meta name="robots" content="index, follow" />
+ 
+    <!-- Open Graph / Social -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:url"         content="https://netguard-peach.vercel.app/" />
+    <meta property="og:title"       content="NetGuard — Network Security Monitor" />
+    <meta property="og:description" content="Scan your local network, detect threats, and get AI-powered security advice. Built with FastAPI, React, and Google Gemini." />
+    <meta property="og:image"       content="https://netguard-peach.vercel.app/favicon.svg" />
+ 
+    <!-- Twitter Card -->
+    <meta name="twitter:card"        content="summary" />
+    <meta name="twitter:title"       content="NetGuard — Network Security Monitor" />
+    <meta name="twitter:description" content="Scan your local network, detect threats, and get AI-powered security advice." />
+ 
+    <!-- Canonical -->
+    <link rel="canonical" href="https://netguard-peach.vercel.app/" />
+ 
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+ 
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600&family=Oxanium:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+ 
+    <!-- Cloudflare Turnstile -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+ 
+    <!-- Accessible h1 for SEO (visually hidden, screen-reader friendly) -->
+    <style>
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
   </head>
   <body>
+    <h1 class="visually-hidden">NetGuard Network Security Monitor — Scan, Detect, and Protect Your Network</h1>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
