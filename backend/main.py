@@ -2,6 +2,7 @@
 netguard/backend/main.py
 ──────────────────────────
 FastAPI application entry point with rate limiting.
+Session 16: added CVE lookup router.
 """
 import os
 from contextlib import asynccontextmanager
@@ -15,9 +16,8 @@ from slowapi.middleware import SlowAPIMiddleware
  
 from core.config import settings
 from core.database import init_db
-from routers import auth, scan, devices, password, chat, alerts
+from routers import auth, scan, devices, password, chat, alerts, cve  # ← added cve
  
-# ── Rate limiter (keyed by IP address) ────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
  
  
@@ -36,25 +36,20 @@ app = FastAPI(
     description="""
 ## NetGuard Network Security API
  
-A full-featured network security monitoring backend with:
- 
 - 🔍 **Network scanning** — ARP host discovery + Nmap port scanning
-- 🚨 **Threat detection** — Flags backdoor ports, suspicious services, unknown devices
-- 🤖 **AI Advisor** — Gemini-powered security guidance with scan context
-- 🔐 **Password breach check** — HaveIBeenPwned k-anonymity integration
-- 📡 **Real-time alerts** — WebSocket push for instant threat notifications
-- 🗓️ **Scan history** — Persistent scan results and findings
-- 🛡️ **Rate limiting** — Brute force protection on auth endpoints
+- 🚨 **Threat detection** — Flags backdoor ports, suspicious services
+- 🛡️ **CVE lookup** — NVD-powered vulnerability database per service/port
+- 🤖 **AI Advisor** — Gemini-powered security guidance
+- 🔐 **Password breach check** — HaveIBeenPwned k-anonymity
+- 📡 **Real-time alerts** — WebSocket push notifications
     """,
     lifespan=lifespan,
 )
  
-# ── Rate limiting middleware ───────────────────────────────────────────────────
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
  
-# ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -73,24 +68,17 @@ app.include_router(devices.router)
 app.include_router(password.router)
 app.include_router(chat.router)
 app.include_router(alerts.router)
+app.include_router(cve.router)   # ← NEW
  
  
 @app.get("/health", tags=["System"])
 async def health_check():
-    return {
-        "status": "healthy",
-        "app": settings.app_name,
-        "version": settings.app_version,
-    }
+    return {"status": "healthy", "app": settings.app_name, "version": settings.app_version}
  
  
 @app.get("/", tags=["System"])
 async def root():
-    return {
-        "message": "NetGuard API is running",
-        "docs": "/docs",
-        "health": "/health",
-    }
+    return {"message": "NetGuard API is running", "docs": "/docs", "health": "/health"}
  
  
 @app.get("/debug-env", tags=["System"])
