@@ -27,31 +27,8 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
  
-    # Profile fields (added via migrate_profile.py)
-    bio: Mapped[str] = mapped_column(Text, nullable=True, default="")
-    avatar_url: Mapped[str] = mapped_column(String(500), nullable=True, default="")
-    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
- 
     scans = relationship("ScanResult", back_populates="user", cascade="all, delete-orphan")
     devices = relationship("TrustedDevice", back_populates="user", cascade="all, delete-orphan")
-    verification_tokens = relationship("VerificationToken", back_populates="user", cascade="all, delete-orphan")
- 
- 
-# ── Verification Token ────────────────────────────────────────────────────────
-class VerificationToken(Base):
-    """
-    Stores email verification tokens in the DB so they survive redeployments.
-    Each user can have only one active token at a time (old ones are replaced).
-    """
-    __tablename__ = "verification_tokens"
- 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    token: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
- 
-    user = relationship("User", back_populates="verification_tokens")
  
  
 # ── Scan Result ───────────────────────────────────────────────────────────────
@@ -123,12 +100,16 @@ class Alert(Base):
  
 # ── Kick Command ──────────────────────────────────────────────────────────────
 class KickCommand(Base):
+    """
+    Stores kick requests from the dashboard.
+    The local agent polls for pending kicks and executes ARP deauth.
+    """
     __tablename__ = "kick_commands"
  
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     mac_address: Mapped[str] = mapped_column(String(20), nullable=False)
-    target_ip: Mapped[str] = mapped_column(String(45), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="pending")
+    target_ip: Mapped[str] = mapped_column(String(45), nullable=True)   # optional, helps agent
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | done | failed
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
-    executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True
+    executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
