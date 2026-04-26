@@ -11,6 +11,7 @@ Fix: profile PATCH explicitly handles avatar_url = "" (clear) vs None (no change
 import httpx
 import secrets
 import aiosmtplib
+import re
 from datetime import timedelta, datetime, timezone
  
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -115,10 +116,7 @@ async def _send_email_gmail(to: str, subject: str, html: str) -> bool:
     msg["From"]    = f"NetGuard Security <{gmail_user}>"
     msg["To"]      = to
 
-    # Plain text fallback (helps avoid spam)
-    plain = html.replace("<br/>", "\n").replace("<br>", "\n")
-    import re
-    plain = re.sub(r"<[^>]+>", "", plain)
+    plain = re.sub(r"<[^>]+>", "", html.replace("<br/>", "\n").replace("<br>", "\n"))
     msg.attach(MIMEText(plain, "plain"))
     msg.attach(MIMEText(html,  "html"))
 
@@ -135,6 +133,45 @@ async def _send_email_gmail(to: str, subject: str, html: str) -> bool:
     except Exception as e:
         print(f"⚠ Gmail send failed: {e}")
         return False
+
+
+@router.post("/send-verification")
+@limiter.limit("3/minute")
+async def send_verification_email(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.id == int(current_user["user_id"])))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if getattr(user, "email_verified", False):
+        raise HTTPException(status_code=400, detail="Email is already verified")
+
+    token = secrets.token_urlsafe(32)
+    _verification_tokens[token] = {
+        "user_id": user.id,
+        "expires": datetime.now(timezone.utc) + timedelta(hours=24),
+    }
+
+    frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
+    verify_url = f"{frontend_origin}/verify?token={token}"
+
+    sent = await _send_email_gmail(
+        to=user.email,
+        subject="NetGuard — Verify your email address",
+        html=_verification_email_html(user.username, verify_url),
+    )
+
+    if sent:
+        return {"detail": f"Verification email sent to {user.email}"}
+    else:
+        raise HTTPException(
+            status_code=503,
+            detail="Email sending is not configured. Add GMAIL_USER and GMAIL_PASSWORD to your Railway environment variables."
+        )
  
  
 def _verification_email_html(username: str, verify_url: str) -> str:
