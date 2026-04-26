@@ -2,7 +2,6 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { auth, auth_state } from '../services/api.js'
  
-// Profile removed from NAV — accessible via username click in footer
 const NAV = [
   { to: '/overview',    label: 'Overview',    icon: '◈', code: 'OVR' },
   { to: '/devices',     label: 'Devices',     icon: '◉', code: 'DEV' },
@@ -11,6 +10,46 @@ const NAV = [
   { to: '/ai',          label: 'AI Advisor',  icon: '◇', code: 'AIA' },
   { to: '/agent-setup', label: 'Run Scan',    icon: '▶', code: 'SCN' },
 ]
+ 
+const AVATAR_COLORS = ['#e8354a','#ff6b35','#4db8e8','#a855f7','#22c55e','#f59e0b','#ec4899']
+ 
+// ── Small avatar for sidebar ──────────────────────────────────────────────────
+function SidebarAvatar({ username, avatarUrl, size = 28 }) {
+  const [imgError, setImgError] = useState(false)
+  const color = AVATAR_COLORS[(username?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length]
+  const initials = (username ?? 'U').slice(0, 2).toUpperCase()
+ 
+  useEffect(() => { setImgError(false) }, [avatarUrl])
+ 
+  if (avatarUrl && avatarUrl.trim() && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={username}
+        style={{
+          width: size, height: size, borderRadius: '50%',
+          objectFit: 'cover',
+          border: `1px solid ${color}`,
+          flexShrink: 0,
+        }}
+        onError={() => setImgError(true)}
+      />
+    )
+  }
+ 
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: color + '22',
+      border: `1px solid ${color}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: 'var(--font-mono)', fontSize: size * 0.36,
+      color, fontWeight: 700, flexShrink: 0,
+    }}>
+      {initials}
+    </div>
+  )
+}
  
 function DataStream({ visible }) {
   const canvasRef = useRef(null)
@@ -63,6 +102,11 @@ export default function Layout() {
   const [theme, setTheme]             = useState(() => localStorage.getItem('ng_theme') || 'dark')
   const [bootSeq, setBootSeq]         = useState(true)
  
+  // Avatar state — load from sessionStorage on mount, update via custom event
+  const [sidebarAvatar, setSidebarAvatar] = useState(
+    () => sessionStorage.getItem('ng_avatar') || ''
+  )
+ 
   const isDark = theme === 'dark'
  
   useEffect(() => {
@@ -81,6 +125,21 @@ export default function Layout() {
     const t = setTimeout(() => setBootSeq(false), 800)
     return () => clearTimeout(t)
   }, [])
+ 
+  // Listen for avatar updates from Profile page
+  useEffect(() => {
+    function onAvatarUpdate(e) {
+      setSidebarAvatar(e.detail || '')
+    }
+    window.addEventListener('ng_avatar_updated', onAvatarUpdate)
+    return () => window.removeEventListener('ng_avatar_updated', onAvatarUpdate)
+  }, [])
+ 
+  // Also re-read from sessionStorage when navigating back to any page
+  useEffect(() => {
+    const stored = sessionStorage.getItem('ng_avatar') || ''
+    setSidebarAvatar(stored)
+  }, [location.pathname])
  
   async function handleLogout() {
     await auth.logout()
@@ -225,29 +284,24 @@ export default function Layout() {
               {isDark ? '☀ LIGHT' : '☾ DARK'}
             </button>
  
-            {/* User row — click username to go to profile */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+            {/* User row — avatar + username → profile, EXIT button */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
               <button
                 onClick={() => navigate('/profile')}
                 title="View profile"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
+                  display: 'flex', alignItems: 'center', gap: 8,
                   background: 'none', border: 'none', cursor: 'pointer',
-                  padding: '2px 4px', borderRadius: 'var(--radius)',
+                  padding: '3px 6px', borderRadius: 'var(--radius)',
                   transition: 'background 0.15s',
                   flex: 1, minWidth: 0,
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--red-dim)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
               >
-                <div style={{
-                  width: 22, height: 22, borderRadius: '50%',
-                  background: 'var(--red-dim)', border: '1px solid var(--red)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--red)', flexShrink: 0,
-                }}>
-                  {username.slice(0, 2).toUpperCase()}
-                </div>
+                {/* Avatar or initials */}
+                <SidebarAvatar username={username} avatarUrl={sidebarAvatar} size={28} />
+ 
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -255,6 +309,7 @@ export default function Layout() {
                   {username}
                 </span>
               </button>
+ 
               <button
                 className="btn-ghost"
                 style={{ padding: '3px 8px', fontSize: 8, letterSpacing: 1, flexShrink: 0, marginLeft: 6 }}

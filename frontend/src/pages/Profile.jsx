@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth, auth_state } from '../services/api.js'
  
@@ -54,13 +54,67 @@ const profileApi = {
  
 const AVATAR_COLORS = ['#e8354a','#ff6b35','#4db8e8','#a855f7','#22c55e','#f59e0b','#ec4899']
  
-// Avatar — key prop forces full remount when URL changes, resetting imgError
+// ── Secure image upload validator ─────────────────────────────────────────────
+// Validates: extension, MIME type, magic bytes (file signature), and size
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+const MAX_SIZE_BYTES = 2 * 1024 * 1024 // 2 MB
+ 
+// Magic bytes (file signatures) for allowed image types
+const MAGIC_BYTES = [
+  { sig: [0xFF, 0xD8, 0xFF],               type: 'jpeg' }, // JPEG
+  { sig: [0x89, 0x50, 0x4E, 0x47],         type: 'png'  }, // PNG
+  { sig: [0x47, 0x49, 0x46, 0x38],         type: 'gif'  }, // GIF
+  { sig: [0x52, 0x49, 0x46, 0x46],         type: 'webp' }, // WEBP (RIFF)
+]
+ 
+async function validateImageFile(file) {
+  // 1. Size check
+  if (file.size > MAX_SIZE_BYTES) {
+    throw new Error('Image must be under 2 MB.')
+  }
+ 
+  // 2. Extension check
+  const ext = '.' + file.name.split('.').pop().toLowerCase()
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error('Only JPG, PNG, GIF, or WEBP images are allowed.')
+  }
+ 
+  // 3. MIME type check (browser-reported, secondary check)
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    throw new Error('Invalid image type. Only JPG, PNG, GIF, or WEBP are accepted.')
+  }
+ 
+  // 4. Magic bytes check (read first 12 bytes of file to verify real format)
+  const header = await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = e => resolve(new Uint8Array(e.target.result))
+    reader.onerror = () => reject(new Error('Could not read file.'))
+    reader.readAsArrayBuffer(file.slice(0, 12))
+  })
+ 
+  const matched = MAGIC_BYTES.some(({ sig }) =>
+    sig.every((byte, i) => header[i] === byte)
+  )
+  if (!matched) {
+    throw new Error('File content does not match a valid image format. Upload rejected.')
+  }
+ 
+  // 5. Convert to base64 data URL (safe — stays client-side, no server upload)
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = e => resolve(e.target.result)
+    reader.onerror = () => reject(new Error('Could not process image.'))
+    reader.readAsDataURL(file)
+  })
+}
+ 
+// Avatar component
 function Avatar({ username, avatarUrl, size = 80 }) {
   const [imgError, setImgError] = useState(false)
   const color = AVATAR_COLORS[(username?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length]
   const initials = (username ?? 'U').slice(0, 2).toUpperCase()
  
-  // Reset error whenever avatarUrl changes
   useEffect(() => { setImgError(false) }, [avatarUrl])
  
   if (avatarUrl && avatarUrl.trim() && !imgError) {
@@ -179,13 +233,196 @@ const EyeIcon = ({ show }) => (
   </svg>
 )
  
+// ── Avatar Upload Section ─────────────────────────────────────────────────────
+function AvatarUploadSection({ username, currentAvatar, onAvatarChange }) {
+  const fileInputRef = useRef(null)
+  const [uploadError, setUploadError] = useState('')
+  const [uploading, setUploading]     = useState(false)
+  const [activeTab, setActiveTab]     = useState('upload') // 'upload' | 'url'
+  const [urlInput, setUrlInput]       = useState(currentAvatar?.startsWith('http') ? currentAvatar : '')
+  const [dragOver, setDragOver]       = useState(false)
+ 
+  async function handleFile(file) {
+    if (!file) return
+    setUploadError('')
+    setUploading(true)
+    try {
+      const dataUrl = await validateImageFile(file)
+      onAvatarChange(dataUrl)
+    } catch (err) {
+      setUploadError(err.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+ 
+  function handleFileInput(e) {
+    const file = e.target.files?.[0]
+    if (file) handleFile(file)
+    // Reset input so same file can be re-selected
+    e.target.value = ''
+  }
+ 
+  function handleDrop(e) {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFile(file)
+  }
+ 
+  function handleUrlApply() {
+    setUploadError('')
+    const url = urlInput.trim()
+    if (!url) {
+      onAvatarChange('')
+      return
+    }
+    // Basic URL sanity — must be http/https and not a script
+    if (!/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url)) {
+      setUploadError('URL must be a direct link ending in .jpg, .jpeg, .png, .gif, or .webp')
+      return
+    }
+    onAvatarChange(url)
+  }
+ 
+  return (
+    <div>
+      <label style={labelStyle}>AVATAR IMAGE</label>
+ 
+      {/* Tab switcher */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 12, border: '1px solid var(--border2)', borderRadius: 'var(--radius)', overflow: 'hidden', width: 'fit-content' }}>
+        {[['upload', '↑ Upload File'], ['url', '🔗 Image URL']].map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => { setActiveTab(tab); setUploadError('') }}
+            style={{
+              padding: '6px 16px',
+              fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: 1.5,
+              background: activeTab === tab ? 'var(--red-dim)' : 'transparent',
+              color: activeTab === tab ? 'var(--red-bright)' : 'var(--muted)',
+              border: 'none',
+              borderRight: tab === 'upload' ? '1px solid var(--border2)' : 'none',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+ 
+      {activeTab === 'upload' ? (
+        <div>
+          {/* Drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              border: `2px dashed ${dragOver ? 'var(--red)' : 'var(--border2)'}`,
+              borderRadius: 'var(--radius)',
+              padding: '20px 16px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: dragOver ? 'var(--red-dim)' : 'var(--surface2)',
+              transition: 'all 0.15s',
+              position: 'relative',
+            }}
+          >
+            {uploading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <span className="spinner" style={{ width: 14, height: 14 }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)' }}>Validating image...</span>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>📁</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text)', letterSpacing: 1, marginBottom: 4 }}>
+                  Drop image here or click to browse
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 0.5 }}>
+                  JPG · PNG · GIF · WEBP · Max 2 MB
+                </div>
+              </>
+            )}
+          </div>
+ 
+          {/* Hidden file input — accept attribute as first defense */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            onChange={handleFileInput}
+            style={{ display: 'none' }}
+          />
+ 
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 6, lineHeight: 1.7, letterSpacing: 0.5 }}>
+            🛡 Image is validated client-side (extension, MIME type, file signature) and stored as a data URL — it never leaves your browser as a raw file.
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="url"
+              value={urlInput}
+              onChange={e => setUrlInput(e.target.value)}
+              placeholder="https://example.com/photo.jpg"
+              onKeyDown={e => e.key === 'Enter' && handleUrlApply()}
+            />
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={handleUrlApply}
+              style={{ flexShrink: 0, padding: '8px 14px', fontSize: 9 }}
+            >
+              APPLY
+            </button>
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 6, letterSpacing: 0.5 }}>
+            Must be a direct link ending in .jpg, .jpeg, .png, .gif, or .webp
+          </div>
+        </div>
+      )}
+ 
+      {uploadError && (
+        <div style={{
+          marginTop: 8, padding: '8px 12px',
+          background: 'var(--red-dim)', border: '1px solid rgba(232,53,74,0.3)',
+          borderRadius: 'var(--radius)', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--red)',
+        }}>
+          ⚠ {uploadError}
+        </div>
+      )}
+ 
+      {/* Clear button */}
+      {currentAvatar && (
+        <button
+          type="button"
+          onClick={() => { onAvatarChange(''); setUrlInput(''); setUploadError('') }}
+          style={{
+            marginTop: 8, background: 'none', border: 'none',
+            fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)',
+            cursor: 'pointer', letterSpacing: 1, padding: 0,
+          }}
+          onMouseEnter={e => e.target.style.color = 'var(--red)'}
+          onMouseLeave={e => e.target.style.color = 'var(--muted)'}
+        >
+          ✕ Remove avatar
+        </button>
+      )}
+    </div>
+  )
+}
+ 
+// ── Main Profile page ─────────────────────────────────────────────────────────
 export default function Profile() {
   const navigate = useNavigate()
   const [profile, setProfile]     = useState(null)
   const [loading, setLoading]     = useState(true)
   const [loadError, setLoadError] = useState('')
  
-  // Check for ?verified=1 in URL (redirect from email verification)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('verified') === '1') {
@@ -194,17 +431,15 @@ export default function Profile() {
     }
   }, [])
  
-  // Info form — no bio field
-  const [infoForm, setInfoForm]     = useState({ username: '', email: '', avatar_url: '' })
-  const [avatarPreview, setAvatarPreview] = useState('')  // live preview URL
-  const [infoSaving, setInfoSaving] = useState(false)
-  const [infoMsg, setInfoMsg]       = useState(null)
+  const [infoForm, setInfoForm]         = useState({ username: '', email: '', avatar_url: '' })
+  const [avatarPreview, setAvatarPreview] = useState('')
+  const [infoSaving, setInfoSaving]     = useState(false)
+  const [infoMsg, setInfoMsg]           = useState(null)
  
-  // Password form
-  const [pwForm, setPwForm]   = useState({ current_password: '', new_password: '', confirm: '' })
+  const [pwForm, setPwForm]     = useState({ current_password: '', new_password: '', confirm: '' })
   const [pwSaving, setPwSaving] = useState(false)
-  const [pwMsg, setPwMsg]     = useState(null)
-  const [showPw, setShowPw]   = useState({ current: false, new: false, confirm: false })
+  const [pwMsg, setPwMsg]       = useState(null)
+  const [showPw, setShowPw]     = useState({ current: false, new: false, confirm: false })
  
   const [verifyMsg, setVerifyMsg]         = useState(null)
   const [verifyLoading, setVerifyLoading] = useState(false)
@@ -233,6 +468,12 @@ export default function Profile() {
     }
   }
  
+  // Called when avatar changes (upload or URL)
+  function handleAvatarChange(newValue) {
+    setInfoForm(f => ({ ...f, avatar_url: newValue }))
+    setAvatarPreview(newValue)
+  }
+ 
   async function saveInfo(e) {
     e.preventDefault()
     setInfoSaving(true)
@@ -241,11 +482,18 @@ export default function Profile() {
       const res = await profileApi.update({
         username:   infoForm.username   || undefined,
         email:      infoForm.email      || undefined,
-        avatar_url: infoForm.avatar_url || '',
+        avatar_url: infoForm.avatar_url ?? '',
       })
       setInfoMsg({ type: 'success', text: 'Profile updated successfully.' })
       if (res.username) auth_state.setUsername(res.username)
-      // Reload fresh data from server to confirm the update
+ 
+      // Persist avatar to sessionStorage so sidebar picks it up immediately
+      if (infoForm.avatar_url !== undefined) {
+        sessionStorage.setItem('ng_avatar', infoForm.avatar_url)
+        // Dispatch event so Layout can react without a page reload
+        window.dispatchEvent(new CustomEvent('ng_avatar_updated', { detail: infoForm.avatar_url }))
+      }
+ 
       await loadProfile()
     } catch (err) {
       setInfoMsg({ type: 'error', text: err.message || 'Update failed.' })
@@ -344,7 +592,6 @@ export default function Profile() {
       {/* ── Identity card ── */}
       <Section title="IDENTITY">
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
-          {/* Avatar with live preview */}
           <Avatar username={profile?.username} avatarUrl={avatarPreview} size={72} />
           <div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--text-bright)', letterSpacing: 2, fontWeight: 700 }}>{profile?.username}</div>
@@ -358,7 +605,6 @@ export default function Profile() {
           </div>
         </div>
  
-        {/* Scan stats */}
         <div style={{ display: 'flex', gap: 10 }}>
           <StatChip label="TOTAL SCANS"   value={profile?.total_scans}   color="var(--blue)" />
           <StatChip label="DEVICES FOUND" value={profile?.total_devices} color="var(--amber)" />
@@ -368,31 +614,27 @@ export default function Profile() {
  
       {/* ── Edit profile ── */}
       <Section title="EDIT PROFILE">
-        <form onSubmit={saveInfo} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={saveInfo} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
  
-          {/* Avatar URL with live preview */}
-          <div>
-            <label style={labelStyle}>AVATAR URL <span style={{ color: 'var(--muted2)', fontWeight: 400 }}>(optional)</span></label>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <input
-                type="url"
-                value={infoForm.avatar_url}
-                onChange={e => {
-                  setInfoForm(f => ({ ...f, avatar_url: e.target.value }))
-                  setAvatarPreview(e.target.value)   // update preview live
-                }}
-                placeholder="https://example.com/your-photo.jpg"
-                style={{ flex: 1 }}
-              />
-              {/* Mini preview */}
-              {infoForm.avatar_url && (
-                <Avatar username={profile?.username} avatarUrl={infoForm.avatar_url} size={36} />
-              )}
+          {/* Avatar section — upload or URL */}
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* Live preview */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <Avatar username={profile?.username} avatarUrl={avatarPreview} size={80} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--muted)', letterSpacing: 1 }}>PREVIEW</span>
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 4 }}>
-              Paste any public image URL. The preview above updates live.
+ 
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <AvatarUploadSection
+                username={profile?.username}
+                currentAvatar={avatarPreview}
+                onAvatarChange={handleAvatarChange}
+              />
             </div>
           </div>
+ 
+          {/* Divider */}
+          <div style={{ height: 1, background: 'var(--border)' }} />
  
           {/* Username */}
           <div>
@@ -517,4 +759,3 @@ export default function Profile() {
     </div>
   )
 }
- 
