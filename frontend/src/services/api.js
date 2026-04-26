@@ -102,12 +102,14 @@ export const auth = {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(parseError(data));
     auth_state.setUsername(data.username);
+    sessionStorage.removeItem('ng_avatar');
     return data;
   },
  
   async logout() {
     await apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     auth_state.clearUsername();
+    sessionStorage.removeItem('ng_avatar');
   },
 
     async me() {
