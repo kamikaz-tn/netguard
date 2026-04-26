@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     # 3. Set these in Railway environment variables:
     resend_api_key: str = ""
     resend_from_email: str = "NetGuard <onboarding@resend.dev>"
+    gmail_user:     str = ""
+    gmail_password: str = ""
  
     # ── Scan defaults ────────────────────────────────────────────────────────
     suspicious_ports: list[int] = [

@@ -10,6 +10,7 @@ Fix: profile PATCH explicitly handles avatar_url = "" (clear) vs None (no change
  
 import httpx
 import secrets
+import aiosmtplib
 from datetime import timedelta, datetime, timezone
  
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -29,6 +30,8 @@ from models.db_models import User, ScanResult
 from models.schemas import UserRegister, TokenResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
  
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 limiter = Limiter(key_func=get_remote_address)
@@ -99,28 +102,38 @@ async def verify_turnstile(token: str) -> bool:
  
 # ── Email sender (Resend) ─────────────────────────────────────────────────────
  
-async def _send_email_resend(to: str, subject: str, html: str) -> bool:
-    api_key   = getattr(settings, "resend_api_key", "")
-    from_addr = getattr(settings, "resend_from_email", "")
- 
-    if not api_key or not from_addr:
-        print("⚠ Email not sent: RESEND_API_KEY or RESEND_FROM_EMAIL not set in .env")
+async def _send_email_gmail(to: str, subject: str, html: str) -> bool:
+    gmail_user     = getattr(settings, "gmail_user",     "")
+    gmail_password = getattr(settings, "gmail_password", "")
+
+    if not gmail_user or not gmail_password:
+        print("⚠ Email not sent: GMAIL_USER or GMAIL_PASSWORD not set in .env")
         return False
- 
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = f"NetGuard Security <{gmail_user}>"
+    msg["To"]      = to
+
+    # Plain text fallback (helps avoid spam)
+    plain = html.replace("<br/>", "\n").replace("<br>", "\n")
+    import re
+    plain = re.sub(r"<[^>]+>", "", plain)
+    msg.attach(MIMEText(plain, "plain"))
+    msg.attach(MIMEText(html,  "html"))
+
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                "https://api.resend.com/emails",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={"from": from_addr, "to": [to], "subject": subject, "html": html},
-            )
-            resp.raise_for_status()
-            return True
+        await aiosmtplib.send(
+            msg,
+            hostname="smtp.gmail.com",
+            port=465,
+            username=gmail_user,
+            password=gmail_password,
+            use_tls=True,
+        )
+        return True
     except Exception as e:
-        print(f"⚠ Email send failed: {e}")
+        print(f"⚠ Gmail send failed: {e}")
         return False
  
  
@@ -383,11 +396,12 @@ async def send_verification_email(
     frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
     verify_url = f"{frontend_origin}/verify?token={token}"
  
-    sent = await _send_email_resend(
+    sent = await _send_email_gmail(
         to=user.email,
         subject="NetGuard — Verify your email address",
         html=_verification_email_html(user.username, verify_url),
     )
+
  
     if sent:
         return {"detail": f"Verification email sent to {user.email}"}
