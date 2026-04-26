@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     resend_from_email: str = "NetGuard <onboarding@resend.dev>"
     gmail_user:     str = ""
     gmail_password: str = ""
+    brevo_api_key:     str = ""
+    brevo_sender_email: str = ""
  
     # ── Scan defaults ────────────────────────────────────────────────────────
     suspicious_ports: list[int] = [

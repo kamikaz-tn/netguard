@@ -102,38 +102,38 @@ async def verify_turnstile(token: str) -> bool:
         return False
  
  
-# ── Email sender (Gmail SMTP) ─────────────────────────────────────────────────
+# ── Email sender (via Brevo) ─────────────────────────────────────────────────
  
-async def _send_email_gmail(to: str, subject: str, html: str) -> bool:
-    import os as _os
-    # Read directly from environment as fallback to bypass any cached settings issue
-    gmail_user     = settings.gmail_user     or _os.environ.get("GMAIL_USER", "")
-    gmail_password = settings.gmail_password or _os.environ.get("GMAIL_PASSWORD", "")
- 
-    if not gmail_user or not gmail_password:
+async def _send_email_brevo(to: str, subject: str, html: str) -> bool:
+    """Send via Brevo HTTP API — works on Railway (no SMTP ports needed)."""
+    api_key = settings.brevo_api_key
+    sender  = settings.brevo_sender_email
+
+    if not api_key or not sender:
         raise RuntimeError(
-            "GMAIL_USER or GMAIL_PASSWORD not set in environment variables."
+            "BREVO_API_KEY or BREVO_SENDER_EMAIL not set in environment variables."
         )
- 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"]    = f"NetGuard Security <{gmail_user}>"
-    msg["To"]      = to
- 
-    plain = re.sub(r"<[^>]+>", "", html.replace("<br/>", "\n").replace("<br>", "\n"))
-    msg.attach(MIMEText(plain, "plain"))
-    msg.attach(MIMEText(html,  "html"))
- 
-    # This raises on SMTP failure — the caller catches and surfaces the real error
-    await aiosmtplib.send(
-        msg,
-        hostname="smtp.gmail.com",
-        port=465,
-        username=gmail_user,
-        password=gmail_password,
-        use_tls=True,
-    )
-    print(f"✓ Email sent successfully to {to}")
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            json={
+                "sender":      {"name": "NetGuard Security", "email": sender},
+                "to":          [{"email": to}],
+                "subject":     subject,
+                "htmlContent": html,
+            },
+        )
+
+    if not resp.is_success:
+        raise RuntimeError(f"Brevo API error {resp.status_code}: {resp.text}")
+
+    print(f"✓ Email sent via Brevo to {to}")
     return True
  
  
@@ -162,7 +162,7 @@ async def send_verification_email(
     verify_url = f"{frontend_origin}/verify?token={token}"
  
     try:
-        await _send_email_gmail(
+        await _send_email_brevo(
             to=user.email,
             subject="NetGuard — Verify your email address",
             html=_verification_email_html(user.username, verify_url),
