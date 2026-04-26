@@ -118,12 +118,26 @@ export default function Layout() {
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
+  
  
   useEffect(() => { setSidebarOpen(false) }, [location.pathname])
  
   useEffect(() => {
     const t = setTimeout(() => setBootSeq(false), 800)
     return () => clearTimeout(t)
+  }, [])
+
+  
+  useEffect(() => {
+    async function syncAvatar() {
+      try {
+        const data = await auth.profile()
+        const avatar = data.avatar_url || ''
+        sessionStorage.setItem('ng_avatar', avatar)
+        setSidebarAvatar(avatar)
+      } catch {}
+    }
+    if (auth_state.isLoggedIn()) syncAvatar()
   }, [])
  
   // Listen for avatar updates from Profile page

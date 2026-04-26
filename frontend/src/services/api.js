@@ -115,6 +115,10 @@ export const auth = {
     async me() {
     return apiFetch("/api/auth/me")
   },
+
+  async profile() {
+    return apiFetch("/api/auth/profile")
+  },
  
   isLoggedIn: () => auth_state.isLoggedIn(),
 };
