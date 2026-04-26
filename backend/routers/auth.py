@@ -104,11 +104,15 @@ async def verify_turnstile(token: str) -> bool:
 # ── Email sender (Resend) ─────────────────────────────────────────────────────
  
 async def _send_email_gmail(to: str, subject: str, html: str) -> bool:
-    gmail_user     = getattr(settings, "gmail_user",     "")
-    gmail_password = getattr(settings, "gmail_password", "")
+    import os as _os
+    # Read directly from environment to bypass any cached settings issue
+    gmail_user     = settings.gmail_user     or _os.environ.get("GMAIL_USER", "")
+    gmail_password = settings.gmail_password or _os.environ.get("GMAIL_PASSWORD", "")
 
     if not gmail_user or not gmail_password:
-        print("⚠ Email not sent: GMAIL_USER or GMAIL_PASSWORD not set in .env")
+        print(f"⚠ Email not sent: GMAIL_USER={'set' if gmail_user else 'MISSING'}, "
+              f"GMAIL_PASSWORD={'set' if gmail_password else 'MISSING'}")
+        print(f"  Env vars with GMAIL: {[k for k in _os.environ if 'GMAIL' in k.upper()]}")
         return False
 
     msg = MIMEMultipart("alternative")
@@ -129,6 +133,7 @@ async def _send_email_gmail(to: str, subject: str, html: str) -> bool:
             password=gmail_password,
             use_tls=True,
         )
+        print(f"✓ Email sent to {to}")
         return True
     except Exception as e:
         print(f"⚠ Gmail send failed: {e}")

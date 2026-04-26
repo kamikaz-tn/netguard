@@ -88,3 +88,13 @@ async def debug_env():
         "gemini_length": len(os.environ.get("GEMINI_API_KEY", "")),
         "all_keys": [k for k in os.environ.keys() if "GEMINI" in k.upper()]
     }
+
+@app.get("/debug-gmail", tags=["System"])
+async def debug_gmail():
+    import os
+    return {
+        "gmail_user_set": bool(settings.gmail_user),
+        "gmail_password_set": bool(settings.gmail_password),
+        "env_gmail_user": bool(os.environ.get("GMAIL_USER")),
+        "env_gmail_password": bool(os.environ.get("GMAIL_PASSWORD")),
+    }
