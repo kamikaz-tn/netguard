@@ -10,9 +10,10 @@ import Devices     from './pages/Devices.jsx'
 import PortScan    from './pages/PortScan.jsx'
 import PwnedCheck  from './pages/PwnedCheck.jsx'
 import AIAdvisor   from './pages/AIAdvisor.jsx'
-import AgentSetup from './pages/AgentSetup.jsx'
+import AgentSetup  from './pages/AgentSetup.jsx'
+import Profile     from './pages/Profile.jsx'
+import Verify      from './pages/Verify.jsx'
 import { auth_state } from './services/api.js'
-import Profile from './pages/Profile.jsx'
  
 /**
  * PrivateRoute — no longer reads localStorage.
@@ -30,16 +31,20 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        {/* Public routes — no auth required */}
+        <Route path="/login"  element={<Login />} />
+        <Route path="/verify" element={<Verify />} />
+ 
+        {/* Protected routes */}
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route index element={<Navigate to="/overview" replace />} />
-          <Route path="overview"  element={<Overview />} />
-          <Route path="devices"   element={<Devices />} />
-          <Route path="ports"     element={<PortScan />} />
-          <Route path="password"  element={<PwnedCheck />} />
-          <Route path="ai"        element={<AIAdvisor />} />
-          <Route path="/agent-setup" element={<AgentSetup />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="overview"    element={<Overview />} />
+          <Route path="devices"     element={<Devices />} />
+          <Route path="ports"       element={<PortScan />} />
+          <Route path="password"    element={<PwnedCheck />} />
+          <Route path="ai"          element={<AIAdvisor />} />
+          <Route path="agent-setup" element={<AgentSetup />} />
+          <Route path="profile"     element={<Profile />} />
         </Route>
       </Routes>
     </BrowserRouter>

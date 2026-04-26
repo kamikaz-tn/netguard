@@ -380,8 +380,8 @@ async def send_verification_email(
         "expires": datetime.now(timezone.utc) + timedelta(hours=24),
     }
  
-    backend_url = getattr(settings, "backend_url", "https://netguard-production-4f1d.up.railway.app")
-    verify_url  = f"{backend_url}/api/auth/verify-email?token={token}"
+    frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
+    verify_url = f"{frontend_origin}/verify?token={token}"
  
     sent = await _send_email_resend(
         to=user.email,
