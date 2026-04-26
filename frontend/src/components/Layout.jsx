@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { auth, auth_state } from '../services/api.js'
  
+// Profile removed from NAV — accessible via username click in footer
 const NAV = [
   { to: '/overview',    label: 'Overview',    icon: '◈', code: 'OVR' },
   { to: '/devices',     label: 'Devices',     icon: '◉', code: 'DEV' },
@@ -9,10 +10,8 @@ const NAV = [
   { to: '/password',    label: 'Pwned Check', icon: '◆', code: 'PWD' },
   { to: '/ai',          label: 'AI Advisor',  icon: '◇', code: 'AIA' },
   { to: '/agent-setup', label: 'Run Scan',    icon: '▶', code: 'SCN' },
-  { to: '/profile',     label: 'Profile',     icon: '◎', code: 'PRF' },
 ]
  
-// Only shown in dark mode — invisible / ugly in light
 function DataStream({ visible }) {
   const canvasRef = useRef(null)
  
@@ -50,10 +49,7 @@ function DataStream({ visible }) {
   return (
     <canvas
       ref={canvasRef}
-      style={{
-        position: 'absolute', inset: 0, width: '100%', height: '100%',
-        pointerEvents: 'none', opacity: 0.6, zIndex: 0,
-      }}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.6, zIndex: 0 }}
     />
   )
 }
@@ -99,7 +95,6 @@ export default function Layout() {
     : threatLevel === 'ELEVATED' ? 'var(--amber)'
     : isDark ? 'var(--blue)' : 'var(--blue)'
  
-  // Nav link colors — light mode needs darker text for readability
   function navStyle({ isActive }, isRunScan) {
     return {
       display: 'flex', alignItems: 'center', gap: 10,
@@ -111,15 +106,12 @@ export default function Layout() {
       marginTop: isRunScan ? 8 : 0,
       borderTop: isRunScan ? '1px solid var(--border)' : 'none',
       paddingTop: isRunScan ? 12 : 8,
-      // FIX: light mode nav text is readable, dark mode stays subtle
       color: isActive
         ? 'var(--red-bright)'
         : isRunScan
           ? 'var(--red)'
-          : isDark ? 'var(--muted)' : '#3a5060',   // ← was too light in light mode
-      background: isActive
-        ? 'var(--red-dim)'
-        : 'transparent',
+          : isDark ? 'var(--muted)' : '#3a5060',
+      background: isActive ? 'var(--red-dim)' : 'transparent',
       border: `1px solid ${isActive ? 'rgba(191,17,48,0.3)' : 'transparent'}`,
       borderTopColor: isRunScan && !isActive ? 'var(--border)' : undefined,
       transition: 'all 0.15s',
@@ -132,49 +124,31 @@ export default function Layout() {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
  
       {/* Mobile overlay */}
-      <div
-        className={`mobile-overlay ${sidebarOpen ? 'open' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-      />
+      <div className={`mobile-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
  
       {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} style={{
         width: 220, display: 'flex', flexDirection: 'column', flexShrink: 0,
         position: 'relative', overflow: 'hidden',
-        // Light mode: clean white sidebar, no matrix effect
         background: isDark ? undefined : '#ffffff',
       }}>
-        {/* Data stream — dark mode only */}
         <DataStream visible={isDark} />
  
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
  
           {/* Logo */}
-          <div style={{
-            padding: '20px 20px 16px',
-            borderBottom: `1px solid var(--border)`,
-          }}>
+          <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid var(--border)` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div className="logo-hex" style={{
-                width: 34, height: 34,
-                border: '2px solid var(--red)',
-                borderRadius: 6,
+                width: 34, height: 34, border: '2px solid var(--red)', borderRadius: 6,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--red)', fontSize: 16,
                 boxShadow: isDark ? '0 0 10px var(--red-glow)' : 'none',
                 background: 'var(--red-dim)',
               }}>⬡</div>
               <div>
-                <div style={{
-                  fontFamily: 'var(--font-display)',
-                  color: 'var(--text-bright)',
-                  fontSize: 17, letterSpacing: 4, fontWeight: 700,
-                }}>NETGUARD</div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)',
-                  color: 'var(--muted)',
-                  fontSize: 8, letterSpacing: 2,
-                }}>SECURITY MONITOR v2</div>
+                <div style={{ fontFamily: 'var(--font-display)', color: 'var(--text-bright)', fontSize: 17, letterSpacing: 4, fontWeight: 700 }}>NETGUARD</div>
+                <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 8, letterSpacing: 2 }}>SECURITY MONITOR v2</div>
               </div>
             </div>
  
@@ -182,16 +156,11 @@ export default function Layout() {
             <div style={{
               marginTop: 12, padding: '6px 10px',
               background: isDark ? 'var(--surface2)' : 'var(--surface3)',
-              borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)', border: '1px solid var(--border)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--muted)', letterSpacing: 1 }}>
-                THREAT LEVEL
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: threatColor, letterSpacing: 2, fontWeight: 700 }}>
-                {threatLevel}
-              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--muted)', letterSpacing: 1 }}>THREAT LEVEL</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: threatColor, letterSpacing: 2, fontWeight: 700 }}>{threatLevel}</span>
             </div>
           </div>
  
@@ -199,7 +168,6 @@ export default function Layout() {
           <nav style={{ flex: 1, padding: '10px 8px', overflowY: 'auto' }}>
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: 8,
-              // FIX: light mode section label — much more visible
               color: isDark ? 'var(--muted2)' : '#8fa4ae',
               letterSpacing: 3, padding: '6px 6px 8px', textTransform: 'uppercase',
             }}>
@@ -212,17 +180,13 @@ export default function Layout() {
                 <NavLink key={to} to={to} style={(p) => navStyle(p, isRunScan)}>
                   {({ isActive }) => (
                     <>
-                      {/* Left active bar */}
                       <div style={{
-                        position: 'absolute', left: 0, top: '50%',
-                        transform: 'translateY(-50%)',
+                        position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
                         width: 2, height: isActive ? '60%' : 0,
                         background: 'var(--red)',
                         boxShadow: isDark ? '0 0 6px var(--red-glow)' : 'none',
-                        borderRadius: '0 1px 1px 0',
-                        transition: 'height 0.2s ease',
+                        borderRadius: '0 1px 1px 0', transition: 'height 0.2s ease',
                       }} />
-                      {/* Code tag */}
                       <span style={{
                         fontFamily: 'var(--font-mono)', fontSize: 7,
                         color: isActive ? 'var(--red)' : isDark ? 'var(--muted2)' : '#9ab0ba',
@@ -231,11 +195,7 @@ export default function Layout() {
                       <span style={{ fontSize: 13 }}>{icon}</span>
                       <span style={{ flex: 1 }}>{label}</span>
                       {isActive && (
-                        <div style={{
-                          width: 4, height: 4, background: 'var(--red)',
-                          borderRadius: '50%',
-                          boxShadow: isDark ? '0 0 4px var(--red-glow)' : 'none',
-                        }} />
+                        <div style={{ width: 4, height: 4, background: 'var(--red)', borderRadius: '50%', boxShadow: isDark ? '0 0 4px var(--red-glow)' : 'none' }} />
                       )}
                     </>
                   )}
@@ -253,9 +213,7 @@ export default function Layout() {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <span>{time.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-              <span className="terminal-cursor" style={{ color: 'var(--red)', fontSize: 11 }}>
-                {time.toLocaleTimeString()}
-              </span>
+              <span className="terminal-cursor" style={{ color: 'var(--red)', fontSize: 11 }}>{time.toLocaleTimeString()}</span>
             </div>
  
             {/* Theme toggle */}
@@ -267,24 +225,39 @@ export default function Layout() {
               {isDark ? '☀ LIGHT' : '☾ DARK'}
             </button>
  
-            {/* User + logout */}
+            {/* User row — click username to go to profile */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                onClick={() => navigate('/profile')}
+                title="View profile"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '2px 4px', borderRadius: 'var(--radius)',
+                  transition: 'background 0.15s',
+                  flex: 1, minWidth: 0,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--red-dim)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+              >
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%',
                   background: 'var(--red-dim)', border: '1px solid var(--red)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--red)',
+                  fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--red)', flexShrink: 0,
                 }}>
                   {username.slice(0, 2).toUpperCase()}
                 </div>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text)' }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
                   {username}
                 </span>
-              </div>
+              </button>
               <button
                 className="btn-ghost"
-                style={{ padding: '3px 8px', fontSize: 8, letterSpacing: 1 }}
+                style={{ padding: '3px 8px', fontSize: 8, letterSpacing: 1, flexShrink: 0, marginLeft: 6 }}
                 onClick={handleLogout}
               >
                 EXIT
@@ -327,19 +300,12 @@ export default function Layout() {
             >
               {isDark ? '☀' : '☾'}
             </button>
-            <button className="btn-ghost" style={{ fontSize: 9, padding: '4px 10px' }} onClick={handleLogout}>
-              EXIT
-            </button>
+            <button className="btn-ghost" style={{ fontSize: 9, padding: '4px 10px' }} onClick={handleLogout}>EXIT</button>
           </div>
         </div>
  
         {/* Top HUD bar */}
-        <div style={{
-          padding: '0 24px',
-          background: 'var(--surface)',
-          borderBottom: '1px solid var(--border)',
-          flexShrink: 0,
-        }}>
+        <div style={{ padding: '0 24px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <div style={{ height: 2 }}>
             <div className="scan-bar" style={{ width: '100%' }} />
           </div>
@@ -352,7 +318,7 @@ export default function Layout() {
             <span style={{ color: 'var(--red)', opacity: 0.7 }}>NETGUARD</span>
             <span>/</span>
             <span style={{ color: 'var(--text-bright)' }}>
-              {currentNav?.label?.toUpperCase() || 'SYSTEM'}
+              {location.pathname === '/profile' ? 'PROFILE' : (currentNav?.label?.toUpperCase() || 'SYSTEM')}
             </span>
           </div>
         </div>

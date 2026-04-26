@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth, auth_state } from '../services/api.js'
  
-// ── Use the same BASE_URL as the rest of the app ──────────────────────────────
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
  
-// ── API calls — all use BASE_URL + credentials:include (cookie auth) ──────────
 const profileApi = {
   get: () =>
     fetch(`${BASE_URL}/api/auth/profile`, { credentials: 'include' }).then(async r => {
@@ -54,20 +52,23 @@ const profileApi = {
     }),
 }
  
-// ── Avatar — initials + color if no URL set ───────────────────────────────────
 const AVATAR_COLORS = ['#e8354a','#ff6b35','#4db8e8','#a855f7','#22c55e','#f59e0b','#ec4899']
  
+// Avatar — key prop forces full remount when URL changes, resetting imgError
 function Avatar({ username, avatarUrl, size = 80 }) {
   const [imgError, setImgError] = useState(false)
   const color = AVATAR_COLORS[(username?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length]
   const initials = (username ?? 'U').slice(0, 2).toUpperCase()
  
-  if (avatarUrl && !imgError) {
+  // Reset error whenever avatarUrl changes
+  useEffect(() => { setImgError(false) }, [avatarUrl])
+ 
+  if (avatarUrl && avatarUrl.trim() && !imgError) {
     return (
       <img
         src={avatarUrl}
         alt={username}
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border2)' }}
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${color}` }}
         onError={() => setImgError(true)}
       />
     )
@@ -88,22 +89,15 @@ function Avatar({ username, avatarUrl, size = 80 }) {
   )
 }
  
-// ── Section wrapper ───────────────────────────────────────────────────────────
 function Section({ title, children, danger = false }) {
   return (
-    <div className="card" style={{
-      marginBottom: 16,
-      borderColor: danger ? 'rgba(232,53,74,0.3)' : undefined,
-    }}>
-      <div className="card-title" style={{ color: danger ? 'var(--red-bright)' : undefined }}>
-        {title}
-      </div>
+    <div className="card" style={{ marginBottom: 16, borderColor: danger ? 'rgba(232,53,74,0.3)' : undefined }}>
+      <div className="card-title" style={{ color: danger ? 'var(--red-bright)' : undefined }}>{title}</div>
       {children}
     </div>
   )
 }
  
-// ── Inline alert ──────────────────────────────────────────────────────────────
 function Alert({ msg, type = 'error' }) {
   if (!msg) return null
   const color = type === 'success' ? 'var(--blue)' : 'var(--red)'
@@ -120,7 +114,6 @@ function Alert({ msg, type = 'error' }) {
   )
 }
  
-// ── Stat chip ─────────────────────────────────────────────────────────────────
 function StatChip({ label, value, color }) {
   return (
     <div style={{
@@ -134,31 +127,23 @@ function StatChip({ label, value, color }) {
   )
 }
  
-// ── Password strength meter ───────────────────────────────────────────────────
 function PasswordStrength({ password }) {
   const checks = [
-    { label: '8+ characters',      ok: password.length >= 8 },
-    { label: 'Uppercase letter',   ok: /[A-Z]/.test(password) },
-    { label: 'Number',             ok: /[0-9]/.test(password) },
-    { label: 'Special character',  ok: /[^A-Za-z0-9]/.test(password) },
+    { label: '8+ characters',     ok: password.length >= 8 },
+    { label: 'Uppercase letter',  ok: /[A-Z]/.test(password) },
+    { label: 'Number',            ok: /[0-9]/.test(password) },
+    { label: 'Special character', ok: /[^A-Za-z0-9]/.test(password) },
   ]
   const score  = checks.filter(c => c.ok).length
   const colors = ['var(--red)', 'var(--red)', 'var(--amber)', 'var(--amber)', 'var(--blue)']
   const labels = ['', 'WEAK', 'WEAK', 'FAIR', 'STRONG']
- 
   return (
     <div>
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         {[0,1,2,3].map(i => (
-          <div key={i} style={{
-            flex: 1, height: 3, borderRadius: 2,
-            background: i < score ? colors[score] : 'var(--border)',
-            transition: 'background 0.3s',
-          }} />
+          <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i < score ? colors[score] : 'var(--border)', transition: 'background 0.3s' }} />
         ))}
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: colors[score], letterSpacing: 1, marginLeft: 6, minWidth: 50 }}>
-          {labels[score]}
-        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: colors[score], letterSpacing: 1, marginLeft: 6, minWidth: 50 }}>{labels[score]}</span>
       </div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {checks.map(({ label, ok }) => (
@@ -171,18 +156,11 @@ function PasswordStrength({ password }) {
   )
 }
  
-// ── Shared label style ────────────────────────────────────────────────────────
 const labelStyle = {
-  fontFamily:    'var(--font-mono)',
-  fontSize:      9,
-  color:         'var(--muted)',
-  letterSpacing: 2,
-  display:       'block',
-  marginBottom:  6,
-  textTransform: 'uppercase',
+  fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)',
+  letterSpacing: 2, display: 'block', marginBottom: 6, textTransform: 'uppercase',
 }
  
-// ── Eye icon ──────────────────────────────────────────────────────────────────
 const EyeIcon = ({ show }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -201,25 +179,33 @@ const EyeIcon = ({ show }) => (
   </svg>
 )
  
-// ── Main Profile page ─────────────────────────────────────────────────────────
 export default function Profile() {
   const navigate = useNavigate()
-  const [profile, setProfile]       = useState(null)
-  const [loading, setLoading]       = useState(true)
-  const [loadError, setLoadError]   = useState('')
+  const [profile, setProfile]     = useState(null)
+  const [loading, setLoading]     = useState(true)
+  const [loadError, setLoadError] = useState('')
  
-  // Info form
-  const [infoForm, setInfoForm]     = useState({ username: '', email: '', bio: '', avatar_url: '' })
+  // Check for ?verified=1 in URL (redirect from email verification)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('verified') === '1') {
+      setVerifyMsg({ type: 'success', text: 'Email verified successfully! Your account is now verified.' })
+      window.history.replaceState({}, '', '/profile')
+    }
+  }, [])
+ 
+  // Info form — no bio field
+  const [infoForm, setInfoForm]     = useState({ username: '', email: '', avatar_url: '' })
+  const [avatarPreview, setAvatarPreview] = useState('')  // live preview URL
   const [infoSaving, setInfoSaving] = useState(false)
   const [infoMsg, setInfoMsg]       = useState(null)
  
   // Password form
-  const [pwForm, setPwForm]         = useState({ current_password: '', new_password: '', confirm: '' })
-  const [pwSaving, setPwSaving]     = useState(false)
-  const [pwMsg, setPwMsg]           = useState(null)
-  const [showPw, setShowPw]         = useState({ current: false, new: false, confirm: false })
+  const [pwForm, setPwForm]   = useState({ current_password: '', new_password: '', confirm: '' })
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwMsg, setPwMsg]     = useState(null)
+  const [showPw, setShowPw]   = useState({ current: false, new: false, confirm: false })
  
-  // Misc states
   const [verifyMsg, setVerifyMsg]         = useState(null)
   const [verifyLoading, setVerifyLoading] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -237,9 +223,9 @@ export default function Profile() {
       setInfoForm({
         username:   data.username   ?? '',
         email:      data.email      ?? '',
-        bio:        data.bio        ?? '',
         avatar_url: data.avatar_url ?? '',
       })
+      setAvatarPreview(data.avatar_url ?? '')
     } catch (e) {
       setLoadError(e.message || 'Failed to load profile. Make sure you are logged in.')
     } finally {
@@ -255,11 +241,11 @@ export default function Profile() {
       const res = await profileApi.update({
         username:   infoForm.username   || undefined,
         email:      infoForm.email      || undefined,
-        bio:        infoForm.bio,
-        avatar_url: infoForm.avatar_url || undefined,
+        avatar_url: infoForm.avatar_url || '',
       })
       setInfoMsg({ type: 'success', text: 'Profile updated successfully.' })
       if (res.username) auth_state.setUsername(res.username)
+      // Reload fresh data from server to confirm the update
       await loadProfile()
     } catch (err) {
       setInfoMsg({ type: 'error', text: err.message || 'Update failed.' })
@@ -281,10 +267,7 @@ export default function Profile() {
     }
     setPwSaving(true)
     try {
-      await profileApi.changePassword({
-        current_password: pwForm.current_password,
-        new_password:     pwForm.new_password,
-      })
+      await profileApi.changePassword({ current_password: pwForm.current_password, new_password: pwForm.new_password })
       setPwMsg({ type: 'success', text: 'Password changed successfully.' })
       setPwForm({ current_password: '', new_password: '', confirm: '' })
     } catch (err) {
@@ -299,7 +282,7 @@ export default function Profile() {
     setVerifyMsg(null)
     try {
       const res = await profileApi.sendVerification()
-      setVerifyMsg({ type: 'success', text: res.detail ?? 'Verification email sent.' })
+      setVerifyMsg({ type: 'success', text: res.detail ?? 'Verification email sent. Check your inbox.' })
     } catch (err) {
       setVerifyMsg({ type: 'error', text: err.message || 'Failed to send verification email.' })
     } finally {
@@ -319,31 +302,25 @@ export default function Profile() {
       auth_state.clearUsername()
       navigate('/login')
     } catch (err) {
-      setDeleteMsg({ type: 'error', text: err.message || 'Failed to delete account. Try again.' })
+      setDeleteMsg({ type: 'error', text: err.message || 'Failed to delete account.' })
       setDeleteLoading(false)
     }
   }
  
-  // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12 }}>
         <div className="spinner" />
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 2 }}>
-          LOADING PROFILE...
-        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 2 }}>LOADING PROFILE...</span>
       </div>
     )
   }
  
-  // ── Load error state ──────────────────────────────────────────────────────
   if (loadError) {
     return (
       <div style={{ maxWidth: 500, margin: '60px auto', textAlign: 'center' }}>
         <div className="card" style={{ borderColor: 'rgba(232,53,74,0.3)' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--red)', marginBottom: 12 }}>
-            ⚠ {loadError}
-          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--red)', marginBottom: 12 }}>⚠ {loadError}</div>
           <button className="btn-primary" onClick={loadProfile}>↺ RETRY</button>
         </div>
       </div>
@@ -359,35 +336,25 @@ export default function Profile() {
  
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 3, marginBottom: 4 }}>
-          MODULE_ID: PRF-001
-        </div>
-        <h1 style={{ fontSize: 22, letterSpacing: 3, color: 'var(--text-bright)', marginBottom: 4 }}>
-          ACCOUNT PROFILE
-        </h1>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)' }}>
-          Manage your identity, security, and preferences
-        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 3, marginBottom: 4 }}>MODULE_ID: PRF-001</div>
+        <h1 style={{ fontSize: 22, letterSpacing: 3, color: 'var(--text-bright)', marginBottom: 4 }}>ACCOUNT PROFILE</h1>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)' }}>Manage your identity and security settings</div>
       </div>
  
       {/* ── Identity card ── */}
       <Section title="IDENTITY">
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
-          <Avatar username={profile?.username} avatarUrl={profile?.avatar_url} size={72} />
+          {/* Avatar with live preview */}
+          <Avatar username={profile?.username} avatarUrl={avatarPreview} size={72} />
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--text-bright)', letterSpacing: 2, fontWeight: 700 }}>
-              {profile?.username}
-            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--text-bright)', letterSpacing: 2, fontWeight: 700 }}>{profile?.username}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>
               {profile?.email}
               {profile?.email_verified
                 ? <span style={{ marginLeft: 8, color: 'var(--blue)', fontSize: 9 }}>✓ VERIFIED</span>
-                : <span style={{ marginLeft: 8, color: 'var(--amber)', fontSize: 9 }}>⚠ UNVERIFIED</span>
-              }
+                : <span style={{ marginLeft: 8, color: 'var(--amber)', fontSize: 9 }}>⚠ UNVERIFIED</span>}
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted2)', marginTop: 4, letterSpacing: 1 }}>
-              Member since {joinDate}
-            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted2)', marginTop: 4, letterSpacing: 1 }}>Member since {joinDate}</div>
           </div>
         </div>
  
@@ -403,17 +370,27 @@ export default function Profile() {
       <Section title="EDIT PROFILE">
         <form onSubmit={saveInfo} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
  
-          {/* Avatar URL */}
+          {/* Avatar URL with live preview */}
           <div>
             <label style={labelStyle}>AVATAR URL <span style={{ color: 'var(--muted2)', fontWeight: 400 }}>(optional)</span></label>
-            <input
-              type="url"
-              value={infoForm.avatar_url}
-              onChange={e => setInfoForm(f => ({ ...f, avatar_url: e.target.value }))}
-              placeholder="https://example.com/your-photo.jpg"
-            />
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <input
+                type="url"
+                value={infoForm.avatar_url}
+                onChange={e => {
+                  setInfoForm(f => ({ ...f, avatar_url: e.target.value }))
+                  setAvatarPreview(e.target.value)   // update preview live
+                }}
+                placeholder="https://example.com/your-photo.jpg"
+                style={{ flex: 1 }}
+              />
+              {/* Mini preview */}
+              {infoForm.avatar_url && (
+                <Avatar username={profile?.username} avatarUrl={infoForm.avatar_url} size={36} />
+              )}
+            </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 4 }}>
-              Paste any public image URL. Leave blank to use your initials.
+              Paste any public image URL. The preview above updates live.
             </div>
           </div>
  
@@ -439,21 +416,6 @@ export default function Profile() {
             />
           </div>
  
-          {/* Bio */}
-          <div>
-            <label style={labelStyle}>BIO <span style={{ color: 'var(--muted2)', fontWeight: 400 }}>(max 200 chars)</span></label>
-            <textarea
-              value={infoForm.bio}
-              onChange={e => setInfoForm(f => ({ ...f, bio: e.target.value }))}
-              maxLength={200} rows={3}
-              placeholder="A short description about yourself..."
-              style={{ resize: 'vertical', minHeight: 72 }}
-            />
-            <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 2 }}>
-              {infoForm.bio.length}/200
-            </div>
-          </div>
- 
           <Alert msg={infoMsg?.text} type={infoMsg?.type} />
  
           <button
@@ -464,8 +426,7 @@ export default function Profile() {
           >
             {infoSaving
               ? <><span className="spinner" style={{ width: 12, height: 12 }} />SAVING</>
-              : '▶ SAVE CHANGES'
-            }
+              : '▶ SAVE CHANGES'}
           </button>
         </form>
       </Section>
@@ -477,27 +438,24 @@ export default function Profile() {
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text)', marginBottom: 4 }}>
               {profile?.email_verified
                 ? <><span style={{ color: 'var(--blue)' }}>✓</span> Your email address is verified.</>
-                : <><span style={{ color: 'var(--amber)' }}>⚠</span> Your email address is not verified.</>
-              }
+                : <><span style={{ color: 'var(--amber)' }}>⚠</span> Your email address is not verified.</>}
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)' }}>
-              {profile?.email}
-            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)' }}>{profile?.email}</div>
           </div>
           {!profile?.email_verified && (
-            <button
-              className="btn-ghost"
-              onClick={sendVerification}
-              disabled={verifyLoading}
-              style={{ whiteSpace: 'nowrap' }}
-            >
+            <button className="btn-ghost" onClick={sendVerification} disabled={verifyLoading} style={{ whiteSpace: 'nowrap' }}>
               {verifyLoading
                 ? <><span className="spinner" style={{ width: 10, height: 10, marginRight: 6 }} />SENDING</>
-                : '✉ SEND VERIFICATION EMAIL'
-              }
+                : '✉ SEND VERIFICATION EMAIL'}
             </button>
           )}
         </div>
+        {!profile?.email_verified && (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 10, lineHeight: 1.8, padding: '8px 12px', background: 'var(--surface2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            ℹ After clicking the link in the email, you will be redirected back here and your account will be marked as verified.
+            If the button in the email doesn't work, copy the full URL and paste it into your browser while logged in.
+          </div>
+        )}
         <Alert msg={verifyMsg?.text} type={verifyMsg?.type} />
       </Section>
  
@@ -505,9 +463,9 @@ export default function Profile() {
       <Section title="CHANGE PASSWORD">
         <form onSubmit={savePassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {[
-            { key: 'current', field: 'current_password', label: 'CURRENT PASSWORD',      placeholder: 'Current password' },
-            { key: 'new',     field: 'new_password',     label: 'NEW PASSWORD',           placeholder: 'Min. 8 characters' },
-            { key: 'confirm', field: 'confirm',          label: 'CONFIRM NEW PASSWORD',   placeholder: 'Repeat new password' },
+            { key: 'current', field: 'current_password', label: 'CURRENT PASSWORD',    placeholder: 'Current password' },
+            { key: 'new',     field: 'new_password',     label: 'NEW PASSWORD',         placeholder: 'Min. 8 characters' },
+            { key: 'confirm', field: 'confirm',          label: 'CONFIRM NEW PASSWORD', placeholder: 'Repeat new password' },
           ].map(({ key, field, label, placeholder }) => (
             <div key={field}>
               <label style={labelStyle}>{label}</label>
@@ -516,41 +474,20 @@ export default function Profile() {
                   type={showPw[key] ? 'text' : 'password'}
                   value={pwForm[field]}
                   onChange={e => setPwForm(f => ({ ...f, [field]: e.target.value }))}
-                  required
-                  style={{ paddingRight: 40 }}
-                  placeholder={placeholder}
+                  required style={{ paddingRight: 40 }} placeholder={placeholder}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(p => ({ ...p, [key]: !p[key] }))}
-                  style={{
-                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--muted)', padding: 0,
-                  }}
-                >
+                <button type="button" onClick={() => setShowPw(p => ({ ...p, [key]: !p[key] }))}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 0 }}>
                   <EyeIcon show={showPw[key]} />
                 </button>
               </div>
             </div>
           ))}
- 
-          {pwForm.new_password.length > 0 && (
-            <PasswordStrength password={pwForm.new_password} />
-          )}
- 
+          {pwForm.new_password.length > 0 && <PasswordStrength password={pwForm.new_password} />}
           <Alert msg={pwMsg?.text} type={pwMsg?.type} />
- 
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={pwSaving}
-            style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            {pwSaving
-              ? <><span className="spinner" style={{ width: 12, height: 12 }} />UPDATING</>
-              : '▶ UPDATE PASSWORD'
-            }
+          <button type="submit" className="btn-primary" disabled={pwSaving}
+            style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {pwSaving ? <><span className="spinner" style={{ width: 12, height: 12 }} />UPDATING</> : '▶ UPDATE PASSWORD'}
           </button>
         </form>
       </Section>
@@ -561,7 +498,6 @@ export default function Profile() {
           Permanently delete your account and all associated data — scans, devices, alerts, findings.
           <span style={{ color: 'var(--red)', display: 'block', marginTop: 4 }}>This action cannot be undone.</span>
         </div>
- 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             type="text"
@@ -570,25 +506,15 @@ export default function Profile() {
             placeholder={profile?.username ? `Type "${profile.username}" to confirm` : 'Loading...'}
             style={{ maxWidth: 260, borderColor: deleteConfirm ? 'var(--red)' : undefined }}
           />
-          <button
-            className="btn-danger"
-            onClick={deleteAccount}
+          <button className="btn-danger" onClick={deleteAccount}
             disabled={deleteLoading || deleteConfirm !== profile?.username}
-            style={{
-              opacity: deleteConfirm === profile?.username ? 1 : 0.4,
-              cursor: deleteConfirm === profile?.username ? 'pointer' : 'not-allowed',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}
-          >
-            {deleteLoading
-              ? <><span className="spinner" style={{ width: 10, height: 10 }} />DELETING</>
-              : '✕ DELETE ACCOUNT'
-            }
+            style={{ opacity: deleteConfirm === profile?.username ? 1 : 0.4, cursor: deleteConfirm === profile?.username ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {deleteLoading ? <><span className="spinner" style={{ width: 10, height: 10 }} />DELETING</> : '✕ DELETE ACCOUNT'}
           </button>
         </div>
         <Alert msg={deleteMsg?.text} type={deleteMsg?.type} />
       </Section>
- 
     </div>
   )
 }
+ 

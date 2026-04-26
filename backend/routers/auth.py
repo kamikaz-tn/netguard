@@ -2,6 +2,10 @@
 netguard/backend/routers/auth.py
 ──────────────────────────────────
 User registration, login, and full profile management.
+ 
+Fix: /verify-email no longer requires auth — it's clicked from email with no session.
+Fix: avatar_url is now stored and returned from the User model (uses getattr safely).
+Fix: profile PATCH explicitly handles avatar_url = "" (clear) vs None (no change).
 """
  
 import httpx
@@ -44,7 +48,7 @@ class ProfileUpdate(BaseModel):
     username:   Optional[str]      = None
     email:      Optional[EmailStr] = None
     bio:        Optional[str]      = None
-    avatar_url: Optional[str]      = None
+    avatar_url: Optional[str]      = None   # None = don't change; "" = clear
  
 class PasswordChange(BaseModel):
     current_password: str
@@ -96,17 +100,10 @@ async def verify_turnstile(token: str) -> bool:
 # ── Email sender (Resend) ─────────────────────────────────────────────────────
  
 async def _send_email_resend(to: str, subject: str, html: str) -> bool:
-    """
-    Send an email via Resend API.
-    Requires RESEND_API_KEY in .env and a verified sender domain.
-    Free tier: 3,000 emails/month, no credit card needed.
-    Sign up at https://resend.com
-    """
-    api_key = getattr(settings, "resend_api_key", "")
+    api_key   = getattr(settings, "resend_api_key", "")
     from_addr = getattr(settings, "resend_from_email", "")
  
     if not api_key or not from_addr:
-        # Email not configured — log and return False
         print("⚠ Email not sent: RESEND_API_KEY or RESEND_FROM_EMAIL not set in .env")
         return False
  
@@ -118,12 +115,7 @@ async def _send_email_resend(to: str, subject: str, html: str) -> bool:
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
-                json={
-                    "from": from_addr,
-                    "to": [to],
-                    "subject": subject,
-                    "html": html,
-                },
+                json={"from": from_addr, "to": [to], "subject": subject, "html": html},
             )
             resp.raise_for_status()
             return True
@@ -138,26 +130,19 @@ def _verification_email_html(username: str, verify_url: str) -> str:
     <html>
     <body style="background:#080a0b;color:#c8d4d8;font-family:'Courier New',monospace;padding:40px;">
       <div style="max-width:480px;margin:0 auto;border:1px solid #1e2d33;border-left:3px solid #e8354a;padding:32px;border-radius:4px;">
-        <div style="font-size:22px;color:#e8354a;letter-spacing:4px;font-weight:700;margin-bottom:8px;">
-          ⬡ NETGUARD
-        </div>
-        <div style="font-size:10px;color:#4a6068;letter-spacing:2px;margin-bottom:24px;">
-          NETWORK SECURITY MONITOR
-        </div>
-        <div style="font-size:14px;color:#e8eef0;margin-bottom:16px;">
-          Hello <strong style="color:#e8354a;">{username}</strong>,
-        </div>
+        <div style="font-size:22px;color:#e8354a;letter-spacing:4px;font-weight:700;margin-bottom:8px;">⬡ NETGUARD</div>
+        <div style="font-size:10px;color:#4a6068;letter-spacing:2px;margin-bottom:24px;">NETWORK SECURITY MONITOR</div>
+        <div style="font-size:14px;color:#e8eef0;margin-bottom:16px;">Hello <strong style="color:#e8354a;">{username}</strong>,</div>
         <div style="font-size:13px;color:#c8d4d8;line-height:1.7;margin-bottom:24px;">
           Click the button below to verify your email address.
           This link expires in <strong style="color:#ff6b35;">24 hours</strong>.
         </div>
-        <a href="{verify_url}"
-           style="display:inline-block;background:rgba(232,53,74,0.12);border:1px solid #e8354a;color:#e8354a;padding:12px 24px;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;border-radius:4px;">
+        <a href="{verify_url}" style="display:inline-block;background:rgba(232,53,74,0.12);border:1px solid #e8354a;color:#e8354a;padding:12px 24px;text-decoration:none;font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;border-radius:4px;">
           ▶ VERIFY EMAIL ADDRESS
         </a>
         <div style="margin-top:24px;font-size:10px;color:#4a6068;line-height:1.8;">
-          Or copy this URL into your browser:<br/>
-          <span style="color:#4db8e8;">{verify_url}</span>
+          Or copy this URL into your browser (must be logged in):<br/>
+          <span style="color:#4db8e8;word-break:break-all;">{verify_url}</span>
         </div>
         <div style="margin-top:24px;padding-top:16px;border-top:1px solid #1e2d33;font-size:9px;color:#2e4450;letter-spacing:1px;">
           If you didn't create a NetGuard account, ignore this email.
@@ -241,6 +226,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
  
  
 # ── GET /api/auth/verify-email?token=... ──────────────────────────────────────
+# NOTE: This endpoint does NOT require auth — the user clicks it from their email
+# client where they have no active session cookie.
  
 @router.get("/verify-email")
 async def verify_email(
@@ -248,16 +235,17 @@ async def verify_email(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Called when user clicks the link in their email.
-    Marks their account as verified and cleans up the token.
+    Called when user clicks the verification link in their email.
+    No auth required — the token itself is the credential.
+    Marks the account verified then redirects to the frontend profile page.
     """
     entry = _verification_tokens.get(token)
     if not entry:
-        raise HTTPException(status_code=400, detail="Invalid or expired verification link.")
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link. Please request a new one from your profile page.")
  
     if datetime.now(timezone.utc) > entry["expires"]:
         del _verification_tokens[token]
-        raise HTTPException(status_code=400, detail="Verification link has expired. Please request a new one.")
+        raise HTTPException(status_code=400, detail="Verification link has expired (24h). Please request a new one from your profile page.")
  
     result = await db.execute(select(User).where(User.id == entry["user_id"]))
     user = result.scalar_one_or_none()
@@ -269,7 +257,7 @@ async def verify_email(
     del _verification_tokens[token]
     await db.flush()
  
-    # Redirect to the dashboard with a success flag
+    # Redirect to frontend profile page with success flag
     frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=f"{frontend_origin}/profile?verified=1")
@@ -287,9 +275,7 @@ async def get_profile(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
  
-    scans_result = await db.execute(
-        select(ScanResult).where(ScanResult.user_id == user.id)
-    )
+    scans_result = await db.execute(select(ScanResult).where(ScanResult.user_id == user.id))
     scans = scans_result.scalars().all()
  
     total_scans   = len(scans)
@@ -301,7 +287,7 @@ async def get_profile(
         username       = user.username,
         email          = user.email,
         bio            = getattr(user, "bio",            None),
-        avatar_url     = getattr(user, "avatar_url",     None),
+        avatar_url     = getattr(user, "avatar_url",     None) or "",
         email_verified = getattr(user, "email_verified", False),
         is_active      = user.is_active,
         created_at     = str(getattr(user, "created_at", "")) or None,
@@ -336,11 +322,13 @@ async def update_profile(
         if hasattr(user, "email_verified"):
             user.email_verified = False
  
+    # bio — only update if column exists
     if body.bio is not None and hasattr(user, "bio"):
         user.bio = body.bio[:200]
  
+    # avatar_url — update whenever the field is provided (even empty string to clear)
     if body.avatar_url is not None and hasattr(user, "avatar_url"):
-        user.avatar_url = body.avatar_url
+        user.avatar_url = body.avatar_url.strip()
  
     await db.flush()
     return {"detail": "Profile updated", "username": user.username}
@@ -378,10 +366,6 @@ async def send_verification_email(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Generate a verification token and send a real email via Resend.
-    Requires RESEND_API_KEY and RESEND_FROM_EMAIL in backend/.env
-    """
     result = await db.execute(select(User).where(User.id == int(current_user["user_id"])))
     user = result.scalar_one_or_none()
     if not user:
@@ -390,18 +374,15 @@ async def send_verification_email(
     if getattr(user, "email_verified", False):
         raise HTTPException(status_code=400, detail="Email is already verified")
  
-    # Generate a secure random token (valid for 24 hours)
     token = secrets.token_urlsafe(32)
     _verification_tokens[token] = {
         "user_id": user.id,
         "expires": datetime.now(timezone.utc) + timedelta(hours=24),
     }
  
-    # Build the verification URL pointing to the backend verify endpoint
     backend_url = getattr(settings, "backend_url", "https://netguard-production-4f1d.up.railway.app")
-    verify_url = f"{backend_url}/api/auth/verify-email?token={token}"
+    verify_url  = f"{backend_url}/api/auth/verify-email?token={token}"
  
-    # Try to send the real email
     sent = await _send_email_resend(
         to=user.email,
         subject="NetGuard — Verify your email address",
@@ -411,7 +392,6 @@ async def send_verification_email(
     if sent:
         return {"detail": f"Verification email sent to {user.email}"}
     else:
-        # Email provider not configured yet — return helpful message
         raise HTTPException(
             status_code=503,
             detail="Email sending is not configured. Add RESEND_API_KEY and RESEND_FROM_EMAIL to your backend .env on Railway."
@@ -436,3 +416,4 @@ async def delete_account(
         response.delete_cookie(key=COOKIE_NAME, path="/", samesite="none", secure=True)
  
     return {"detail": "Account deleted"}
+ 
