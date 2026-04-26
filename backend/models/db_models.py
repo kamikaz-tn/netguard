@@ -2,6 +2,10 @@
 netguard/backend/models/db_models.py
 ──────────────────────────────────────
 SQLAlchemy ORM models — these become the actual database tables.
+ 
+Changes:
+  - User: added avatar_url, bio, email_verified columns
+  - VerificationToken: new table so tokens survive Railway restarts
 """
  
 from datetime import datetime, timezone
@@ -27,8 +31,31 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
  
+    # Profile fields
+    avatar_url: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    bio: Mapped[str] = mapped_column(Text, default="", server_default="")
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+ 
     scans = relationship("ScanResult", back_populates="user", cascade="all, delete-orphan")
     devices = relationship("TrustedDevice", back_populates="user", cascade="all, delete-orphan")
+    verification_tokens = relationship("VerificationToken", back_populates="user", cascade="all, delete-orphan")
+ 
+ 
+# ── Verification Token ────────────────────────────────────────────────────────
+class VerificationToken(Base):
+    """
+    Stores email verification tokens in the DB so they survive server restarts.
+    Railway redeploys wipe in-memory state — this fixes the 'invalid token' bug.
+    """
+    __tablename__ = "verification_tokens"
+ 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    token: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+ 
+    user = relationship("User", back_populates="verification_tokens")
  
  
 # ── Scan Result ───────────────────────────────────────────────────────────────
@@ -109,7 +136,7 @@ class KickCommand(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     mac_address: Mapped[str] = mapped_column(String(20), nullable=False)
-    target_ip: Mapped[str] = mapped_column(String(45), nullable=True)   # optional, helps agent
+    target_ip: Mapped[str] = mapped_column(String(45), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | done | failed
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)

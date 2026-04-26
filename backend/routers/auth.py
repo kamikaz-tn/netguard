@@ -416,4 +416,3 @@ async def delete_account(
         response.delete_cookie(key=COOKIE_NAME, path="/", samesite="none", secure=True)
  
     return {"detail": "Account deleted"}
- 
