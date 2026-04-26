@@ -6,6 +6,7 @@ User registration, login, and full profile management.
 Fix: /verify-email no longer requires auth — it's clicked from email with no session.
 Fix: avatar_url is now stored and returned from the User model (uses getattr safely).
 Fix: profile PATCH explicitly handles avatar_url = "" (clear) vs None (no change).
+Fix: _send_email_gmail now raises on failure so real SMTP errors surface to frontend.
 """
  
 import httpx
@@ -101,45 +102,41 @@ async def verify_turnstile(token: str) -> bool:
         return False
  
  
-# ── Email sender (Resend) ─────────────────────────────────────────────────────
+# ── Email sender (Gmail SMTP) ─────────────────────────────────────────────────
  
 async def _send_email_gmail(to: str, subject: str, html: str) -> bool:
     import os as _os
-    # Read directly from environment to bypass any cached settings issue
+    # Read directly from environment as fallback to bypass any cached settings issue
     gmail_user     = settings.gmail_user     or _os.environ.get("GMAIL_USER", "")
     gmail_password = settings.gmail_password or _os.environ.get("GMAIL_PASSWORD", "")
-
+ 
     if not gmail_user or not gmail_password:
-        print(f"⚠ Email not sent: GMAIL_USER={'set' if gmail_user else 'MISSING'}, "
-              f"GMAIL_PASSWORD={'set' if gmail_password else 'MISSING'}")
-        print(f"  Env vars with GMAIL: {[k for k in _os.environ if 'GMAIL' in k.upper()]}")
-        return False
-
+        raise RuntimeError(
+            "GMAIL_USER or GMAIL_PASSWORD not set in environment variables."
+        )
+ 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = f"NetGuard Security <{gmail_user}>"
     msg["To"]      = to
-
+ 
     plain = re.sub(r"<[^>]+>", "", html.replace("<br/>", "\n").replace("<br>", "\n"))
     msg.attach(MIMEText(plain, "plain"))
     msg.attach(MIMEText(html,  "html"))
-
-    try:
-        await aiosmtplib.send(
-            msg,
-            hostname="smtp.gmail.com",
-            port=465,
-            username=gmail_user,
-            password=gmail_password,
-            use_tls=True,
-        )
-        print(f"✓ Email sent to {to}")
-        return True
-    except Exception as e:
-        print(f"⚠ Gmail send failed: {e}")
-        return False
-
-
+ 
+    # This raises on SMTP failure — the caller catches and surfaces the real error
+    await aiosmtplib.send(
+        msg,
+        hostname="smtp.gmail.com",
+        port=465,
+        username=gmail_user,
+        password=gmail_password,
+        use_tls=True,
+    )
+    print(f"✓ Email sent successfully to {to}")
+    return True
+ 
+ 
 @router.post("/send-verification")
 @limiter.limit("3/minute")
 async def send_verification_email(
@@ -151,31 +148,33 @@ async def send_verification_email(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
+ 
     if getattr(user, "email_verified", False):
         raise HTTPException(status_code=400, detail="Email is already verified")
-
+ 
     token = secrets.token_urlsafe(32)
     _verification_tokens[token] = {
         "user_id": user.id,
         "expires": datetime.now(timezone.utc) + timedelta(hours=24),
     }
-
+ 
     frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
     verify_url = f"{frontend_origin}/verify?token={token}"
-
-    sent = await _send_email_gmail(
-        to=user.email,
-        subject="NetGuard — Verify your email address",
-        html=_verification_email_html(user.username, verify_url),
-    )
-
-    if sent:
+ 
+    try:
+        await _send_email_gmail(
+            to=user.email,
+            subject="NetGuard — Verify your email address",
+            html=_verification_email_html(user.username, verify_url),
+        )
         return {"detail": f"Verification email sent to {user.email}"}
-    else:
+    except Exception as e:
+        error_msg = str(e)
+        print(f"⚠ send_verification_email failed for {user.email}: {error_msg}")
+        # Surface the real SMTP error to the frontend
         raise HTTPException(
             status_code=503,
-            detail="Email sending is not configured. Add GMAIL_USER and GMAIL_PASSWORD to your Railway environment variables."
+            detail=f"Email sending failed: {error_msg}"
         )
  
  
@@ -412,7 +411,6 @@ async def change_password(
     user.hashed_password = hash_password(body.new_password)
     await db.flush()
     return {"detail": "Password changed successfully"}
- 
  
  
 @router.delete("/account")
