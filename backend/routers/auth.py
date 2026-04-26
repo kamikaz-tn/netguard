@@ -409,45 +409,6 @@ async def change_password(
     return {"detail": "Password changed successfully"}
  
  
-@router.post("/send-verification")
-@limiter.limit("3/minute")
-async def send_verification_email(
-    request: Request,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(User).where(User.id == int(current_user["user_id"])))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
- 
-    if getattr(user, "email_verified", False):
-        raise HTTPException(status_code=400, detail="Email is already verified")
- 
-    token = secrets.token_urlsafe(32)
-    _verification_tokens[token] = {
-        "user_id": user.id,
-        "expires": datetime.now(timezone.utc) + timedelta(hours=24),
-    }
- 
-    frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
-    verify_url = f"{frontend_origin}/verify?token={token}"
- 
-    sent = await _send_email_gmail(
-        to=user.email,
-        subject="NetGuard — Verify your email address",
-        html=_verification_email_html(user.username, verify_url),
-    )
-
- 
-    if sent:
-        return {"detail": f"Verification email sent to {user.email}"}
-    else:
-        raise HTTPException(
-            status_code=503,
-            detail="Email sending is not configured. Add RESEND_API_KEY and RESEND_FROM_EMAIL to your backend .env on Railway."
-        )
- 
  
 @router.delete("/account")
 async def delete_account(
