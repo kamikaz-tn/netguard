@@ -20,7 +20,6 @@ function Sparkline({ data, color, height = 28, width = 80 }) {
  
 // ── Real-Time Traffic Graph ───────────────────────────────────────────────────
 function TrafficGraph({ scanHistory }) {
-  // Generate plausible per-scan data from history
   const labels = scanHistory.slice().reverse().map((s, i) => {
     const d = new Date(s.created_at)
     return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -57,7 +56,6 @@ function TrafficGraph({ scanHistory }) {
   const portsPath   = pointsToPath(portsPts)
   const threatsPath = pointsToPath(threatsPts)
  
-  // Y-axis gridlines
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map(t => ({
     y: H - PAD - t * (H - PAD * 1.5),
     val: Math.round(t * maxPorts),
@@ -66,43 +64,32 @@ function TrafficGraph({ scanHistory }) {
   return (
     <div style={{ width: '100%', overflowX: 'auto' }}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-        {/* Grid */}
         {gridLines.map(({ y, val }) => (
           <g key={y}>
             <line x1={PAD} y1={y} x2={W - PAD} y2={y} stroke="var(--border)" strokeWidth="1" strokeDasharray="3,4" />
             <text x={PAD - 6} y={y + 4} fill="var(--muted)" fontSize="8" textAnchor="end" fontFamily="Share Tech Mono, monospace">{val}</text>
           </g>
         ))}
- 
-        {/* Ports filled area */}
         {portsPts.length > 1 && (
           <path
             d={`${portsPath} L ${portsPts[portsPts.length-1][0]} ${H - PAD} L ${portsPts[0][0]} ${H - PAD} Z`}
             fill="rgba(77,184,232,0.08)"
           />
         )}
- 
-        {/* Threats filled area */}
         {threatsPts.length > 1 && (
           <path
             d={`${threatsPath} L ${threatsPts[threatsPts.length-1][0]} ${H - PAD} L ${threatsPts[0][0]} ${H - PAD} Z`}
             fill="rgba(232,53,74,0.08)"
           />
         )}
- 
-        {/* Lines */}
         {portsPath   && <path d={portsPath}   fill="none" stroke="var(--blue)"      strokeWidth="1.8" strokeLinecap="round" />}
         {threatsPath && <path d={threatsPath} fill="none" stroke="var(--red)"       strokeWidth="1.8" strokeLinecap="round" />}
- 
-        {/* Dots on latest point */}
         {portsPts.length > 0 && (
           <circle cx={portsPts[portsPts.length-1][0]} cy={portsPts[portsPts.length-1][1]} r="3" fill="var(--blue)" />
         )}
         {threatsPts.length > 0 && (
           <circle cx={threatsPts[threatsPts.length-1][0]} cy={threatsPts[threatsPts.length-1][1]} r="3" fill="var(--red)" />
         )}
- 
-        {/* X-axis labels */}
         {labels.map((label, i) => {
           const x = PAD + (i / Math.max(labels.length - 1, 1)) * (W - PAD * 2)
           return (
@@ -120,7 +107,6 @@ function TrafficGraph({ scanHistory }) {
 function SecurityLog({ findings, scanHistory }) {
   const logRef = useRef(null)
  
-  // Build log entries from findings + scan events
   const entries = []
  
   scanHistory.slice(0, 5).forEach(s => {
@@ -138,7 +124,7 @@ function SecurityLog({ findings, scanHistory }) {
     entries.push({ ts: '--:--:--', level, msg: `${f.host_ip}${f.port ? ':' + f.port : ''} — ${f.description?.slice(0, 60)}`, color })
   })
  
-  entries.sort(() => Math.random() - 0.5) // shuffle for realism
+  entries.sort(() => Math.random() - 0.5)
  
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
@@ -161,7 +147,7 @@ function SecurityLog({ findings, scanHistory }) {
       }}
     >
       {entries.length === 0 ? (
-        <div style={{ color: 'var(--muted)' }} className="terminal-cursor">Awaiting scan data...</div>
+        <div style={{ color: 'var(--muted)' }}>Awaiting scan data...</div>
       ) : (
         entries.map((e, i) => (
           <div key={i} style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: 1 }}>
@@ -171,7 +157,6 @@ function SecurityLog({ findings, scanHistory }) {
           </div>
         ))
       )}
-      <div style={{ color: 'var(--red)', marginTop: 4 }} className="terminal-cursor">|</div>
     </div>
   )
 }
@@ -262,7 +247,6 @@ export default function Overview() {
  
   useEffect(() => { loadData() }, [])
  
-  // Uptime counter (seconds since page load)
   useEffect(() => {
     const t = setInterval(() => setUptime(u => u + 1), 1000)
     return () => clearInterval(t)
@@ -275,7 +259,6 @@ export default function Overview() {
       if (results?.length > 0) {
         setScanHistory(results)
         setLatestScan(results[0])
-        // Load findings from latest scan
         try {
           const detail = await scan.detail(results[0].id)
           setAllFindings(detail.findings || [])
@@ -288,18 +271,15 @@ export default function Overview() {
   const riskScore = Math.round(latestScan?.risk_score ?? 0)
   const riskColor = riskScore >= 70 ? 'var(--red-bright)' : riskScore >= 40 ? 'var(--amber)' : 'var(--blue)'
  
-  // Sparkline data from history (reversed = oldest first)
   const sparkPorts   = scanHistory.slice().reverse().map(s => s.total_ports || 0)
   const sparkThreats = scanHistory.slice().reverse().map(s => s.threats_found || 0)
   const sparkDevices = scanHistory.slice().reverse().map(s => s.hosts_up || 0)
   const sparkRisk    = scanHistory.slice().reverse().map(s => s.risk_score || 0)
  
-  // Uptime display
   const uptimeMins = Math.floor(uptime / 60)
   const uptimeSecs = uptime % 60
   const uptimeStr  = uptimeMins > 0 ? `${uptimeMins}m ${uptimeSecs}s` : `${uptimeSecs}s`
  
-  // Threat status label
   const threatLabel = riskScore >= 70 ? 'CRITICAL' : riskScore >= 40 ? 'ELEVATED' : riskScore > 0 ? 'NOMINAL' : 'STANDBY'
   const threatColor = riskScore >= 70 ? 'var(--red-bright)' : riskScore >= 40 ? 'var(--amber)' : 'var(--blue)'
  
@@ -321,7 +301,7 @@ export default function Overview() {
                 <span>SESSION: {uptimeStr}</span>
               </>
             ) : (
-              <span className="terminal-cursor">Awaiting scan data</span>
+              <span style={{ color: 'var(--muted)' }}>Awaiting scan data</span>
             )}
           </div>
         </div>
@@ -349,7 +329,6 @@ export default function Overview() {
       {/* ── Traffic Graph + Risk ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, marginBottom: 16 }} className="two-col-grid">
  
-        {/* Traffic Graph */}
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div className="card-title" style={{ margin: 0 }}>SCAN HISTORY — PORT & THREAT TRENDS</div>
@@ -362,12 +341,11 @@ export default function Overview() {
             <TrafficGraph scanHistory={scanHistory} />
           ) : (
             <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
-              {loading ? <span className="spinner" /> : <span className="terminal-cursor">Need 2+ scans to show trends</span>}
+              {loading ? <span className="spinner" /> : <span>Need 2+ scans to show trends</span>}
             </div>
           )}
         </div>
  
-        {/* Risk Ring */}
         <div className="card">
           <div className="card-title">RISK ASSESSMENT</div>
           {latestScan ? (
@@ -393,7 +371,7 @@ export default function Overview() {
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
-              <span className="terminal-cursor">Run a scan to see results</span>
+              Run a scan to see results
             </div>
           )}
         </div>
@@ -402,7 +380,6 @@ export default function Overview() {
       {/* ── Findings + Security Log ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="two-col-grid">
  
-        {/* Latest findings */}
         <div className="card">
           <div className="card-title">LATEST FINDINGS</div>
           {allFindings.length > 0 ? (
@@ -411,12 +388,11 @@ export default function Overview() {
             <div style={{ textAlign: 'center', padding: '30px 0', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
               {latestScan
                 ? <span style={{ color: 'var(--blue)' }}>◉ NO CRITICAL FINDINGS</span>
-                : <span style={{ color: 'var(--muted)' }} className="terminal-cursor">No data yet</span>}
+                : <span style={{ color: 'var(--muted)' }}>No data yet</span>}
             </div>
           )}
         </div>
  
-        {/* Security Log Terminal */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div className="card-title" style={{ margin: 0 }}>SECURITY LOG</div>
@@ -431,3 +407,4 @@ export default function Overview() {
     </div>
   )
 }
+ 

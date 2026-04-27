@@ -13,7 +13,6 @@ const NAV = [
  
 const AVATAR_COLORS = ['#e8354a','#ff6b35','#4db8e8','#a855f7','#22c55e','#f59e0b','#ec4899']
  
-// ── Small avatar for sidebar ──────────────────────────────────────────────────
 function SidebarAvatar({ username, avatarUrl, size = 28 }) {
   const [imgError, setImgError] = useState(false)
   const color = AVATAR_COLORS[(username?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length]
@@ -102,7 +101,6 @@ export default function Layout() {
   const [theme, setTheme]             = useState(() => localStorage.getItem('ng_theme') || 'dark')
   const [bootSeq, setBootSeq]         = useState(true)
  
-  // Avatar state — load from sessionStorage on mount, update via custom event
   const [sidebarAvatar, setSidebarAvatar] = useState(
     () => sessionStorage.getItem('ng_avatar') || ''
   )
@@ -118,7 +116,6 @@ export default function Layout() {
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
-  
  
   useEffect(() => { setSidebarOpen(false) }, [location.pathname])
  
@@ -126,8 +123,7 @@ export default function Layout() {
     const t = setTimeout(() => setBootSeq(false), 800)
     return () => clearTimeout(t)
   }, [])
-
-  
+ 
   useEffect(() => {
     async function syncAvatar() {
       try {
@@ -140,7 +136,6 @@ export default function Layout() {
     if (auth_state.isLoggedIn()) syncAvatar()
   }, [])
  
-  // Listen for avatar updates from Profile page
   useEffect(() => {
     function onAvatarUpdate(e) {
       setSidebarAvatar(e.detail || '')
@@ -149,7 +144,6 @@ export default function Layout() {
     return () => window.removeEventListener('ng_avatar_updated', onAvatarUpdate)
   }, [])
  
-  // Also re-read from sessionStorage when navigating back to any page
   useEffect(() => {
     const stored = sessionStorage.getItem('ng_avatar') || ''
     setSidebarAvatar(stored)
@@ -279,14 +273,14 @@ export default function Layout() {
  
           {/* Footer */}
           <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
-            {/* Clock */}
+            {/* Clock — no blinking cursor */}
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: 10,
               color: 'var(--muted)', marginBottom: 8,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <span>{time.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
-              <span className="terminal-cursor" style={{ color: 'var(--red)', fontSize: 11 }}>{time.toLocaleTimeString()}</span>
+              <span style={{ color: 'var(--red)', fontSize: 11 }}>{time.toLocaleTimeString()}</span>
             </div>
  
             {/* Theme toggle */}
@@ -298,7 +292,7 @@ export default function Layout() {
               {isDark ? '☀ LIGHT' : '☾ DARK'}
             </button>
  
-            {/* User row — avatar + username → profile, EXIT button */}
+            {/* User row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
               <button
                 onClick={() => navigate('/profile')}
@@ -313,9 +307,7 @@ export default function Layout() {
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--red-dim)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
               >
-                {/* Avatar or initials */}
                 <SidebarAvatar username={username} avatarUrl={sidebarAvatar} size={28} />
- 
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -373,14 +365,11 @@ export default function Layout() {
           </div>
         </div>
  
-        {/* Top HUD bar */}
+        {/* Top HUD bar — scan-bar removed */}
         <div style={{ padding: '0 24px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <div style={{ height: 2 }}>
-            <div className="scan-bar" style={{ width: '100%' }} />
-          </div>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '6px 0',
+            padding: '8px 0',
             fontFamily: 'var(--font-mono)', fontSize: 9,
             color: 'var(--muted)', letterSpacing: 1.5,
           }}>

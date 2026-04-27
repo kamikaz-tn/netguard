@@ -17,7 +17,6 @@ function RadarCanvas() {
     canvas.height = SIZE
     const cx = SIZE / 2, cy = SIZE / 2, R = SIZE / 2 - 4
  
-    // Blip positions (random, fixed)
     const blips = Array.from({ length: 8 }, () => ({
       angle: Math.random() * Math.PI * 2,
       dist: (0.3 + Math.random() * 0.6) * R,
@@ -30,7 +29,6 @@ function RadarCanvas() {
     function draw() {
       ctx.clearRect(0, 0, SIZE, SIZE)
  
-      // Radar rings
       ctx.strokeStyle = 'rgba(232,53,74,0.15)'
       ctx.lineWidth = 0.5
       for (let r = R * 0.25; r <= R; r += R * 0.25) {
@@ -39,12 +37,10 @@ function RadarCanvas() {
         ctx.stroke()
       }
  
-      // Cross hairs
       ctx.strokeStyle = 'rgba(232,53,74,0.1)'
       ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.stroke()
       ctx.beginPath(); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke()
  
-      // Degree markers
       ctx.fillStyle = 'rgba(232,53,74,0.4)'
       ctx.font = '8px Share Tech Mono, monospace'
       ctx.textAlign = 'center'
@@ -55,9 +51,6 @@ function RadarCanvas() {
         ctx.fillText(deg, tx, ty + 3)
       })
  
-      // Sweep gradient
-      const sweep = ctx.createConicalGradient ? null : null // fallback
-      // Manual sweep fill using arc sectors
       const gradStart = angle - 1.2
       for (let a = gradStart; a < angle; a += 0.02) {
         const t = (a - gradStart) / 1.2
@@ -69,7 +62,6 @@ function RadarCanvas() {
         ctx.fill()
       }
  
-      // Sweep line
       ctx.beginPath()
       ctx.moveTo(cx, cy)
       ctx.lineTo(cx + Math.cos(angle) * R, cy + Math.sin(angle) * R)
@@ -77,7 +69,6 @@ function RadarCanvas() {
       ctx.lineWidth = 1.5
       ctx.stroke()
  
-      // Blips
       blips.forEach(blip => {
         const diff = ((angle - blip.angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2)
         if (diff < 0.15) blip.alpha = 1
@@ -97,7 +88,6 @@ function RadarCanvas() {
         }
       })
  
-      // Outer ring
       ctx.beginPath()
       ctx.arc(cx, cy, R, 0, Math.PI * 2)
       ctx.strokeStyle = 'rgba(232,53,74,0.35)'
@@ -251,13 +241,13 @@ export default function Login() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', overflow: 'hidden', position: 'relative', background: 'var(--bg)' }}>
  
-      {/* ── Boot overlay ── */}
+      {/* ── Boot overlay — no blinking cursor ── */}
       {!bootDone && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 40px', animation: bootLines.length === BOOT_LINES.length ? 'fadeOutBoot 0.4s 0.5s forwards' : 'none' }}>
           <style>{`@keyframes fadeOutBoot { to { opacity: 0; pointer-events: none; } }`}</style>
           {bootLines.map((line, i) => (
             <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: i === bootLines.length - 1 ? 'var(--red-bright)' : 'var(--muted)', letterSpacing: 1, marginBottom: 6, animation: 'hudBootUp 0.2s ease both' }}>
-              {line}{i === bootLines.length - 1 && <span className="terminal-cursor" />}
+              {line}
             </div>
           ))}
         </div>
@@ -410,7 +400,7 @@ export default function Login() {
               </div>
               {!turnstileToken && (
                 <div style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 1 }}>
-                  <span className="terminal-cursor">Loading security check</span>
+                  Loading security check...
                 </div>
               )}
  

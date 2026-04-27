@@ -393,17 +393,7 @@ input::placeholder { color: var(--muted); }
   97% { clip-path: none; transform: none; }
 }
 .glitch-hover:hover { animation: glitchShift 0.4s steps(1) forwards; }
- 
-@keyframes typeCursor {
-  0%, 100% { border-color: var(--red); }
-  50% { border-color: transparent; }
-}
-.terminal-cursor {
-  border-right: 2px solid var(--red);
-  animation: typeCursor 0.8s step-end infinite;
-  padding-right: 2px;
-}
- 
+  
 @keyframes scanLine {
   0%   { transform: scaleX(0); transform-origin: left; }
   50%  { transform: scaleX(1); transform-origin: left; }
