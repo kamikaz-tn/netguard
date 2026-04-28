@@ -48,6 +48,21 @@
   --grid-line:   rgba(232,53,74,0.04);
   --scanline:    rgba(0,0,0,0.35);
   --corner:      10px;
+
+  /* Run Scan page theme tokens */
+  --setup-flow-card-bg:      linear-gradient(145deg, rgba(18,28,42,0.95), rgba(9,16,28,0.95));
+  --setup-flow-card-border:  rgba(72,146,230,0.35);
+  --setup-flow-icon-border:  rgba(77,184,232,0.5);
+  --setup-flow-icon-bg:      rgba(77,184,232,0.1);
+  --setup-flow-title:        var(--text-bright);
+  --setup-flow-text:         var(--text);
+  --setup-step-card-bg:      rgba(6,12,18,0.8);
+  --setup-step-card-border:  var(--border);
+  --setup-code-bg:           #10161f;
+  --setup-code-border:       #2b3a4f;
+  --setup-code-text:         #79d2ff;
+  --setup-safe-bg:           rgba(6,12,18,0.9);
+  --setup-safe-border:       var(--border);
 }
  
 /* ── LIGHT THEME ─────────────────────────────────────────────────────────── */
@@ -91,6 +106,21 @@
   --input-bg:    #ffffff;
   --grid-line:   rgba(191,17,48,0.04);
   --scanline:    transparent;
+
+  /* Run Scan page theme tokens */
+  --setup-flow-card-bg:      linear-gradient(145deg, #f4f8fc, #eef4fa);
+  --setup-flow-card-border:  #d1e0ee;
+  --setup-flow-icon-border:  #b8d2ea;
+  --setup-flow-icon-bg:      rgba(77,184,232,0.18);
+  --setup-flow-title:        #12212b;
+  --setup-flow-text:         #2c4656;
+  --setup-step-card-bg:      #f5f8fb;
+  --setup-step-card-border:  #d4dce4;
+  --setup-code-bg:           #eaf1f8;
+  --setup-code-border:       #c6d4e3;
+  --setup-code-text:         #0c4f7a;
+  --setup-safe-bg:           #f5f8fb;
+  --setup-safe-border:       #d4dce4;
 }
  
 /* ── BASE RESET ──────────────────────────────────────────────────────────── */

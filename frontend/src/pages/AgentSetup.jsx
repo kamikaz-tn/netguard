@@ -66,7 +66,6 @@ export default function AgentSetup() {
   const [copied, setCopied]   = useState(null)
   const [os, setOs]           = useState('windows')
   const [envError, setEnvError] = useState('')
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light'
  
   const steps = getSteps(os)
  
@@ -150,10 +149,8 @@ export default function AgentSetup() {
           ].map((item, i, arr) => (
             <div key={item.title}>
               <div style={{
-                background: isLight
-                  ? 'linear-gradient(145deg, #f4f8fc, #eef4fa)'
-                  : 'linear-gradient(145deg, rgba(18,28,42,0.95), rgba(9,16,28,0.95))',
-                border: isLight ? '1px solid #d1e0ee' : '1px solid rgba(72,146,230,0.35)',
+                background: 'var(--setup-flow-card-bg)',
+                border: '1px solid var(--setup-flow-card-border)',
                 borderRadius: 12,
                 padding: '16px 18px',
                 display: 'flex',
@@ -163,13 +160,13 @@ export default function AgentSetup() {
                 <div style={{
                   width: 46, height: 46, flexShrink: 0,
                   borderRadius: 10,
-                  border: isLight ? '1px solid #b8d2ea' : '1px solid rgba(77,184,232,0.5)',
+                  border: '1px solid var(--setup-flow-icon-border)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 24, background: isLight ? 'rgba(77,184,232,0.18)' : 'rgba(77,184,232,0.1)',
+                  fontSize: 24, background: 'var(--setup-flow-icon-bg)',
                 }}>{item.icon}</div>
                 <div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: isLight ? '#12212b' : 'var(--text-bright)', marginBottom: 2 }}>{item.title}</div>
-                  <div style={{ fontSize: 16, color: isLight ? '#2c4656' : 'var(--text)', lineHeight: 1.55, fontWeight: 600 }}>{item.text}</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--setup-flow-title)', marginBottom: 2 }}>{item.title}</div>
+                  <div style={{ fontSize: 16, color: 'var(--setup-flow-text)', lineHeight: 1.55, fontWeight: 600 }}>{item.text}</div>
                 </div>
               </div>
               {i < arr.length - 1 && <div style={{ textAlign: 'center', color: '#58b7ff', fontSize: 24, lineHeight: 1, margin: '8px 0' }}>↓</div>}
@@ -229,8 +226,8 @@ export default function AgentSetup() {
         {steps.map((step, i) => (
           <div key={`${os}-${i}`} style={{
             display: 'flex', gap: 18, marginBottom: i < steps.length - 1 ? 18 : 0,
-            background: isLight ? '#f5f8fb' : 'rgba(6,12,18,0.8)',
-            border: isLight ? '1px solid #d4dce4' : '1px solid var(--border)',
+            background: 'var(--setup-step-card-bg)',
+            border: '1px solid var(--setup-step-card-border)',
             borderRadius: 12, padding: 16,
           }}>
             <div style={{
@@ -244,10 +241,10 @@ export default function AgentSetup() {
               {step.code && (
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: step.extraCode || step.note || step.link ? 10 : 0 }}>
                   <code style={{
-                    background: isLight ? '#eaf1f8' : '#10161f',
-                    border: isLight ? '1px solid #c6d4e3' : '1px solid #2b3a4f',
+                    background: 'var(--setup-code-bg)',
+                    border: '1px solid var(--setup-code-border)',
                     borderRadius: 8, padding: '12px 14px',
-                    fontFamily: 'var(--font-mono)', fontSize: 16, color: isLight ? '#0c4f7a' : '#79d2ff', flex: 1, display: 'flex', alignItems: 'center',
+                    fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--setup-code-text)', flex: 1, display: 'flex', alignItems: 'center',
                   }}>
                     {step.code}
                   </code>
@@ -267,10 +264,10 @@ export default function AgentSetup() {
               {step.extraCode && (
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: step.note || step.link ? 10 : 0 }}>
                   <code style={{
-                    background: isLight ? '#eaf1f8' : '#10161f',
-                    border: isLight ? '1px solid #c6d4e3' : '1px solid #2b3a4f',
+                    background: 'var(--setup-code-bg)',
+                    border: '1px solid var(--setup-code-border)',
                     borderRadius: 8, padding: '12px 14px',
-                    fontFamily: 'var(--font-mono)', fontSize: 16, color: isLight ? '#0c4f7a' : '#79d2ff', flex: 1, display: 'flex', alignItems: 'center',
+                    fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--setup-code-text)', flex: 1, display: 'flex', alignItems: 'center',
                   }}>
                     {step.extraCode}
                   </code>
@@ -314,8 +311,8 @@ export default function AgentSetup() {
  
       {/* Safety notice */}
       <div style={{
-        background: isLight ? '#f5f8fb' : 'rgba(6,12,18,0.9)',
-        border: isLight ? '1px solid #d4dce4' : '1px solid var(--border)',
+        background: 'var(--setup-safe-bg)',
+        border: '1px solid var(--setup-safe-border)',
         borderRadius: 12, padding: '22px 22px', marginBottom: 24,
       }}>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-bright)', letterSpacing: 2, marginBottom: 14 }}>
