@@ -10,6 +10,12 @@ Flow:
   POST /api/scan/agent    → agent pushes completed scan data (agent-mode)
 """
  
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -24,6 +30,9 @@ from models.schemas import (
 from services.scanner import run_full_scan
 from services.risk_analyzer import analyze_devices, compute_network_risk_score
 from services.websocket_manager import manager
+
+
+
  
 router = APIRouter(prefix="/api/scan", tags=["Network Scanning"])
  
@@ -134,7 +143,11 @@ async def start_scan(
  
 # ── POST /api/scan/agent ──────────────────────────────────────────────────────
 @router.post("/agent", response_model=ScanResultOut)
+@limiter.limit("5/minute")
+@router.post("/agent", response_model=ScanResultOut)
+@limiter.limit("5/minute")
 async def agent_push_scan(
+    request: Request,
     payload: AgentScanPayload,
     db: AsyncSession = Depends(get_db),
 ):
@@ -145,10 +158,13 @@ async def agent_push_scan(
     """
     if not verify_agent_secret(payload.agent_secret):
         raise HTTPException(status_code=401, detail="Invalid agent secret")
- 
+
+    if len(payload.devices) > 254:
+        raise HTTPException(status_code=400, detail="Too many devices in payload")
+
     # Use ALL devices from payload — no filtering
     devices = payload.devices
- 
+
     # Apply trusted device status from DB
     trusted_result = await db.execute(
         select(TrustedDevice).where(
@@ -157,19 +173,19 @@ async def agent_push_scan(
         )
     )
     trusted_macs = {d.mac_address.upper() for d in trusted_result.scalars().all()}
- 
+
     # Re-apply trust status so DB reflects current trusted list
     for device in devices:
         if device.mac and device.mac.upper() in trusted_macs:
             device.status = "trusted"
- 
+
     findings = analyze_devices(devices)
     risk_score = compute_network_risk_score(devices, findings)
- 
+
     scan = await _persist_scan(
         db, payload.user_id, payload.network_range, devices, findings, risk_score
     )
- 
+
     # Push critical/high alerts to user via WebSocket
     for f in findings:
         if f.severity in ("critical", "high"):
@@ -180,7 +196,7 @@ async def agent_push_scan(
                 "host_ip": f.host_ip,
                 "port": f.port,
             })
- 
+
     return ScanResultOut(
         id=scan.id,
         network_range=scan.network_range,
