@@ -211,16 +211,6 @@ export default function Layout() {
               style={{ width: '100%', maxWidth: 170, height: 'auto', display: 'block', filter: isDark ? 'drop-shadow(0 0 10px rgba(232,53,74,0.25))' : 'none' }}
             />
  
-            {/* Threat level badge */}
-            <div style={{
-              marginTop: 12, padding: '6px 10px',
-              background: isDark ? 'var(--surface2)' : 'var(--surface3)',
-              borderRadius: 'var(--radius)', border: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--muted)', letterSpacing: 1 }}>THREAT LEVEL</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: threatColor, letterSpacing: 2, fontWeight: 700 }}>{threatLevel}</span>
-            </div>
           </div>
  
           {/* Navigation */}
