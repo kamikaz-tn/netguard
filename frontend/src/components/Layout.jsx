@@ -205,19 +205,11 @@ export default function Layout() {
  
           {/* Logo */}
           <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid var(--border)` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div className="logo-hex" style={{
-                width: 34, height: 34, border: '2px solid var(--red)', borderRadius: 6,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--red)', fontSize: 16,
-                boxShadow: isDark ? '0 0 10px var(--red-glow)' : 'none',
-                background: 'var(--red-dim)',
-              }}>⬡</div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-display)', color: 'var(--text-bright)', fontSize: 17, letterSpacing: 4, fontWeight: 700 }}>NETGUARD</div>
-                <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 8, letterSpacing: 2 }}>SECURITY MONITOR v2</div>
-              </div>
-            </div>
+            <img
+              src="/netguard-logo.png"
+              alt="NetGuard"
+              style={{ width: '100%', maxWidth: 170, height: 'auto', display: 'block', filter: isDark ? 'drop-shadow(0 0 10px rgba(232,53,74,0.25))' : 'none' }}
+            />
  
             {/* Threat level badge */}
             <div style={{

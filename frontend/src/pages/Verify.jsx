@@ -101,17 +101,11 @@ export default function Verify() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{
-            width: 56, height: 56,
-            border: '2px solid var(--red)',
-            borderRadius: 12,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22, color: 'var(--red)',
-            background: 'var(--red-dim)',
-            boxShadow: '0 0 20px var(--red-glow)',
-            margin: '0 auto 12px',
-          }}>⬡</div>
-          <div style={{ fontFamily: 'var(--font-display)', color: 'var(--text-bright)', fontSize: 22, letterSpacing: 5, fontWeight: 700 }}>NETGUARD</div>
+          <img
+            src="/netguard-logo.png"
+            alt="NetGuard"
+            style={{ width: 250, maxWidth: '92%', height: 'auto', margin: '0 auto 10px', display: 'block', filter: 'drop-shadow(0 0 16px rgba(232,53,74,0.22))' }}
+          />
           <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 9, letterSpacing: 3, marginTop: 2 }}>EMAIL VERIFICATION</div>
         </div>
 

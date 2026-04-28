@@ -80,12 +80,12 @@ export default function Login() {
  
   return (
     <div style={{ minHeight: '100vh', display: 'flex', overflow: 'hidden', position: 'relative', background: 'var(--bg)' }}>
-      <div style={{ position: 'absolute', top: 24, left: 20, zIndex: 2, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 32, height: 32, border: '2px solid var(--red)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--red)', fontSize: 16, background: 'var(--red-dim)', boxShadow: '0 0 10px var(--red-glow)' }}>⬡</div>
-        <div>
-          <div style={{ fontFamily: 'var(--font-display)', color: 'var(--text-bright)', fontSize: 15, letterSpacing: 4, fontWeight: 700 }}>NETGUARD</div>
-          <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 7, letterSpacing: 2 }}>NETWORK SECURITY PLATFORM</div>
-        </div>
+      <div style={{ position: 'absolute', top: 18, left: 16, zIndex: 2 }}>
+        <img
+          src="/netguard-logo.png"
+          alt="NetGuard"
+          style={{ width: 150, height: 'auto', display: 'block', filter: 'drop-shadow(0 0 10px rgba(232,53,74,0.25))' }}
+        />
       </div>
  
       {/* ── Boot overlay — no blinking cursor ── */}
@@ -115,9 +115,11 @@ export default function Login() {
  
           {/* Logo */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <div style={{ width: 56, height: 56, border: '2px solid var(--red)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: 'var(--red)', background: 'var(--red-dim)', boxShadow: '0 0 20px var(--red-glow)', margin: '0 auto 10px' }}>⬡</div>
-            <div style={{ fontFamily: 'var(--font-display)', color: 'var(--text-bright)', fontSize: 22, letterSpacing: 5, fontWeight: 700 }}>NETGUARD</div>
-            <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 9, letterSpacing: 3, marginTop: 2 }}>NETWORK SECURITY MONITOR</div>
+            <img
+              src="/netguard-logo.png"
+              alt="NetGuard"
+              style={{ width: 240, maxWidth: '92%', height: 'auto', margin: '0 auto 10px', display: 'block', filter: 'drop-shadow(0 0 16px rgba(232,53,74,0.22))' }}
+            />
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--red)', letterSpacing: 2, marginTop: 8 }}>[ AUTHENTICATION REQUIRED ]</div>
           </div>
  
