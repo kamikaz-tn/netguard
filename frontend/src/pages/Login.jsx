@@ -80,14 +80,6 @@ export default function Login() {
  
   return (
     <div style={{ minHeight: '100vh', display: 'flex', overflow: 'hidden', position: 'relative', background: 'var(--bg)' }}>
-      <div style={{ position: 'absolute', top: 18, left: 16, zIndex: 2 }}>
-        <img
-          src="/netguard-logo.png"
-          alt="NetGuard"
-          style={{ width: 150, height: 'auto', display: 'block', filter: 'drop-shadow(0 0 10px rgba(232,53,74,0.25))' }}
-        />
-      </div>
- 
       {/* ── Boot overlay — no blinking cursor ── */}
       {!bootDone && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 40px', animation: bootLines.length === BOOT_LINES.length ? 'fadeOutBoot 0.4s 0.5s forwards' : 'none' }}>
