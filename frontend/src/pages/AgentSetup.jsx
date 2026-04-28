@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { auth } from '../services/api.js'   // ← FIX 1: was missing
+import { auth } from '../services/api.js'
  
 // ── OS-specific config ─────────────────────────────────────────────────────────
 const OS_OPTIONS = [
-  { id: 'windows', label: 'Windows',  icon: '🪟' },
-  { id: 'linux',   label: 'Linux',    icon: '🐧' },
-  { id: 'mac',     label: 'macOS',    icon: '🍎' },
+  { id: 'windows', label: 'WINDOWS', icon: '⊞' },
+  { id: 'linux', label: 'LINUX', icon: '🐧' },
+  { id: 'mac', label: 'MACOS', icon: '◉' },
 ]
  
 function getSteps(os) {
@@ -15,43 +15,43 @@ function getSteps(os) {
   return [
     {
       num: '01',
-      title: 'Install Python',
-      desc: 'Make sure Python 3.11 or higher is installed on your machine.',
+      title: 'Step 1: Get Python',
+      desc: 'Ensure Python 3.11 or later is installed.',
       code: isWin ? 'python --version' : 'python3 --version',
-      link: { label: 'Download Python', url: 'https://python.org/downloads' },
+      link: { label: '+ Download Python', url: 'https://python.org/downloads' },
     },
     {
       num: '02',
-      title: 'Install Nmap',
-      desc: 'The agent uses Nmap to scan open ports on your network.',
+      title: 'Step 2: Install Nmap',
+      desc: 'Install Nmap to enable accurate host and port discovery.',
       code: null,
       note: isWin
-        ? 'Download the Windows installer from nmap.org and run it as Administrator.'
+        ? 'Important: Download the official Nmap installer for Windows and run it as an Administrator.'
         : os === 'linux'
-          ? 'Or install via terminal:'
-          : 'Or install via Homebrew:',
+          ? 'Use your package manager for installation.'
+          : 'Use Homebrew for installation.',
       extraCode: isWin ? null : os === 'linux' ? 'sudo apt install nmap' : 'brew install nmap',
-      link: { label: 'Download Nmap', url: 'https://nmap.org/download' },
+      link: { label: '+ Download Nmap', url: 'https://nmap.org/download' },
     },
     {
       num: '03',
-      title: 'Install Agent Dependencies',
-      desc: 'Open a terminal in the folder where you downloaded the agent and run:',
+      title: 'Step 3: Setup Dependencies',
+      desc: 'Install required Python packages from requirements.txt.',
       code: isWin ? 'pip install -r requirements.txt' : 'pip3 install -r requirements.txt',
       link: null,
     },
     {
       num: '04',
-      title: 'Run the Agent',
+      title: 'Step 4: Start the Scan',
       desc: isWin
-        ? 'Run PowerShell or Command Prompt as Administrator, then run:'
-        : 'ARP scanning requires root access. Run with sudo:',
+        ? 'Run the command from your installation folder.'
+        : 'Run with elevated permissions for ARP access.',
       code: isWin ? 'python agent.py --scan' : 'sudo python3 agent.py --scan',
       note: isWin
-        ? 'Right-click PowerShell → "Run as Administrator" before running the command.'
+        ? 'Warning: Open PowerShell as an Administrator and run this from the installation folder.'
         : os === 'linux'
-          ? 'On Linux, sudo grants the raw socket access needed for ARP scanning.'
-          : 'On macOS, sudo grants the raw socket access needed for ARP scanning.',
+          ? 'Linux requires sudo for raw socket access used by ARP scanning.'
+          : 'macOS requires sudo for raw socket access used by ARP scanning.',
       link: null,
     },
   ]
@@ -88,9 +88,6 @@ export default function AgentSetup() {
     URL.revokeObjectURL(blobUrl)
   }
  
-  // FIX 2: renamed to netguard.env (browsers block dotfiles)
-  // FIX 3: removed accidental leading spaces in template literal
-  // FIX 4: added document.body.appendChild for cross-browser support
   async function downloadEnv() {
     setEnvError('')
     try {
@@ -119,110 +116,145 @@ export default function AgentSetup() {
   }
  
   return (
-    <div className="animate-in" style={{ maxWidth: 760 }}>
+    <div className="animate-in" style={{ maxWidth: 980, margin: '0 auto', paddingBottom: 28 }}>
  
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: 30 }}>
         <button
           onClick={() => navigate('/overview')}
-          style={{ background: 'none', border: 'none', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 2, cursor: 'pointer', marginBottom: 16, padding: 0 }}
+          style={{ background: 'none', border: 'none', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1.5, cursor: 'pointer', marginBottom: 16, padding: 0 }}
         >
           ← BACK TO OVERVIEW
         </button>
-        <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--text)', letterSpacing: 2, marginBottom: 8 }}>
-          LOCAL AGENT SETUP
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: 'var(--text-bright)', letterSpacing: 2, marginBottom: 10 }}>
+          RUN SCAN SETUP
         </h1>
-        <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, maxWidth: 600 }}>
-          NetGuard uses a lightweight local agent to scan your network. Because your router and devices
-          live on your home LAN, the scan must run <span style={{ color: 'var(--green)' }}>on your machine</span> — not from the cloud.
-          Results are pushed securely to your NetGuard dashboard.
+        <p style={{ fontSize: 16, color: 'var(--text)', lineHeight: 1.7, maxWidth: 860 }}>
+          Clean setup, clear steps, and high-contrast commands. Follow this once to deploy the local agent and send scan results
+          securely to your NetGuard dashboard.
         </p>
       </div>
  
       {/* How it works */}
-      <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
-        <div className="card-title" style={{ marginBottom: 16 }}>HOW IT WORKS</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+      <div className="card" style={{ marginBottom: 24, padding: '24px 24px' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-bright)', letterSpacing: 2, marginBottom: 16 }}>
+          HOW IT WORKS
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
           {[
-            { icon: '💻', label: 'Your Machine' },
-            { icon: '→',  label: null },
-            { icon: '🔍', label: 'ARP + Port Scan' },
-            { icon: '→',  label: null },
-            { icon: '☁️', label: 'NetGuard Cloud' },
-            { icon: '→',  label: null },
-            { icon: '📊', label: 'Your Dashboard' },
-          ].map((item, i) => (
-            item.label === null
-              ? <div key={i} style={{ color: 'var(--muted)', fontSize: 18, margin: '0 8px' }}>→</div>
-              : (
-                <div key={i} style={{ textAlign: 'center', padding: '10px 16px', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 22 }}>{item.icon}</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 4, letterSpacing: 1 }}>{item.label}</div>
+            { title: '1. Your Machine', text: 'The setup agent is deployed on your computer.', icon: '🖥' },
+            { title: '2. ARP + Port Scan', text: 'It performs an automated scan of your local network.', icon: '🔎' },
+            { title: '3. NetGuard Cloud', text: 'Scan results are securely sent for analysis.', icon: '☁' },
+            { title: '4. Your Dashboard', text: 'View detailed results on your NetGuard account.', icon: '📊' },
+          ].map((item, i, arr) => (
+            <div key={item.title}>
+              <div style={{
+                background: 'linear-gradient(145deg, rgba(18,28,42,0.95), rgba(9,16,28,0.95))',
+                border: '1px solid rgba(72,146,230,0.35)',
+                borderRadius: 12,
+                padding: '16px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+              }}>
+                <div style={{
+                  width: 46, height: 46, flexShrink: 0,
+                  borderRadius: 10,
+                  border: '1px solid rgba(77,184,232,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 24, background: 'rgba(77,184,232,0.1)',
+                }}>{item.icon}</div>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-bright)', marginBottom: 2 }}>{item.title}</div>
+                  <div style={{ fontSize: 16, color: 'var(--text)', lineHeight: 1.55, fontWeight: 600 }}>{item.text}</div>
                 </div>
-              )
+              </div>
+              {i < arr.length - 1 && (
+                <div style={{ textAlign: 'center', color: '#58b7ff', fontSize: 24, lineHeight: 1, margin: '8px 0' }}>↓</div>
+              )}
+            </div>
           ))}
         </div>
       </div>
  
       {/* OS SELECTOR */}
-      <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
-        <div className="card-title" style={{ marginBottom: 14 }}>SELECT YOUR OPERATING SYSTEM</div>
-        <div style={{ display: 'flex', gap: 10 }}>
+      <div className="card" style={{ marginBottom: 24, padding: '24px 24px' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-bright)', letterSpacing: 2, marginBottom: 16 }}>
+          SELECT YOUR OPERATING SYSTEM
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
           {OS_OPTIONS.map(opt => (
             <button
               key={opt.id}
               onClick={() => setOs(opt.id)}
               style={{
-                flex: 1, padding: '12px 8px',
-                borderRadius: 'var(--radius)',
-                border: os === opt.id ? '1px solid var(--green)' : '1px solid var(--border)',
-                background: os === opt.id ? 'rgba(0,229,160,0.08)' : 'var(--bg)',
-                color: os === opt.id ? 'var(--green)' : 'var(--muted)',
-                fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1,
+                padding: '18px 10px',
+                borderRadius: 12,
+                border: os === opt.id ? '1px solid #58b7ff' : '1px solid var(--border)',
+                background: os === opt.id ? 'rgba(88,183,255,0.14)' : 'rgba(255,255,255,0.01)',
+                color: os === opt.id ? '#7ed2ff' : 'var(--muted)',
+                fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: 1,
                 cursor: 'pointer', transition: 'all 0.15s',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                boxShadow: os === opt.id ? '0 0 12px rgba(0,229,160,0.1)' : 'none',
+                boxShadow: os === opt.id ? '0 0 18px rgba(88,183,255,0.14)' : 'none',
               }}
             >
-              <span style={{ fontSize: 22 }}>{opt.icon}</span>
-              {opt.label.toUpperCase()}
+              <span style={{ fontSize: 30 }}>{opt.icon}</span>
+              {opt.label}
               {os === opt.id && (
-                <span style={{ fontSize: 8, color: 'var(--green)', letterSpacing: 2 }}>● SELECTED</span>
+                <span style={{ fontSize: 12, color: 'var(--green)', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>+ SELECTED</span>
               )}
             </button>
           ))}
         </div>
  
         <div style={{
-          marginTop: 14, padding: '10px 14px',
-          background: 'rgba(0,229,160,0.04)', border: '1px solid rgba(0,229,160,0.15)',
+          marginTop: 16, padding: '14px 16px',
+          background: 'rgba(88,183,255,0.08)', border: '1px solid rgba(88,183,255,0.24)',
           borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 10,
-          color: 'var(--muted)', letterSpacing: 0.5, lineHeight: 1.7,
+          color: 'var(--text)', letterSpacing: 0.2, lineHeight: 1.8,
         }}>
-          {os === 'windows' && '⚠ Windows: Run PowerShell or CMD as Administrator. Right-click the icon → "Run as Administrator".'}
-          {os === 'linux'   && '⚠ Linux: sudo is required for ARP scanning (raw socket access). Commands below use python3 and pip3.'}
-          {os === 'mac'     && '⚠ macOS: sudo is required for ARP scanning (raw socket access). Make sure Homebrew is installed for Nmap.'}
+          {os === 'windows' && 'NOTE: You must run PowerShell as an Administrator. Right-click the icon → "Run as Administrator".'}
+          {os === 'linux' && 'NOTE: Run commands using sudo for ARP scan permissions (raw socket access).'}
+          {os === 'mac' && 'NOTE: Use sudo for ARP scan permissions and Homebrew for Nmap installation.'}
         </div>
       </div>
  
       {/* Steps */}
-      <div className="card" style={{ marginBottom: 20, padding: '20px 24px' }}>
-        <div className="card-title" style={{ marginBottom: 20 }}>SETUP STEPS</div>
+      <div className="card" style={{ marginBottom: 24, padding: '24px 24px' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-bright)', letterSpacing: 2, marginBottom: 18 }}>
+          SETUP STEPS
+        </div>
         {steps.map((step, i) => (
-          <div key={`${os}-${i}`} style={{ display: 'flex', gap: 16, marginBottom: i < steps.length - 1 ? 28 : 0 }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, color: 'var(--green)', opacity: 0.4, flexShrink: 0, lineHeight: 1 }}>{step.num}</div>
+          <div key={`${os}-${i}`} style={{
+            display: 'flex', gap: 18, marginBottom: i < steps.length - 1 ? 18 : 0,
+            background: 'rgba(6,12,18,0.8)', border: '1px solid var(--border)', borderRadius: 12, padding: 16,
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontSize: 28, color: '#58b7ff',
+              flexShrink: 0, lineHeight: 1, minWidth: 48, textAlign: 'center',
+            }}>{step.num}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text)', letterSpacing: 1, marginBottom: 6 }}>{step.title}</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 8 }}>{step.desc}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'var(--text-bright)', marginBottom: 8 }}>{step.title}</div>
+              <div style={{ fontSize: 16, color: 'var(--text)', lineHeight: 1.6, marginBottom: 10 }}>{step.desc}</div>
  
               {step.code && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: step.extraCode || step.note ? 8 : 0 }}>
-                  <code style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: step.extraCode || step.note || step.link ? 10 : 0 }}>
+                  <code style={{
+                    background: '#10161f',
+                    border: '1px solid #2b3a4f',
+                    borderRadius: 8, padding: '12px 14px',
+                    fontFamily: 'var(--font-mono)', fontSize: 16, color: '#79d2ff', flex: 1, display: 'flex', alignItems: 'center',
+                  }}>
                     {step.code}
                   </code>
                   <button
                     onClick={() => copyCode(step.code, `${os}-${i}-main`)}
-                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 10px', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}
+                    style={{
+                      background: 'rgba(88,183,255,0.12)', border: '1px solid rgba(88,183,255,0.5)',
+                      borderRadius: 8, padding: '0 16px', fontFamily: 'var(--font-mono)',
+                      fontSize: 13, color: '#8dd8ff', cursor: 'pointer', flexShrink: 0, minWidth: 88,
+                    }}
                   >
                     {copied === `${os}-${i}-main` ? '✓ COPIED' : 'COPY'}
                   </button>
@@ -230,13 +262,22 @@ export default function AgentSetup() {
               )}
  
               {step.extraCode && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: step.note ? 8 : 0 }}>
-                  <code style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: step.note || step.link ? 10 : 0 }}>
+                  <code style={{
+                    background: '#10161f',
+                    border: '1px solid #2b3a4f',
+                    borderRadius: 8, padding: '12px 14px',
+                    fontFamily: 'var(--font-mono)', fontSize: 16, color: '#79d2ff', flex: 1, display: 'flex', alignItems: 'center',
+                  }}>
                     {step.extraCode}
                   </code>
                   <button
                     onClick={() => copyCode(step.extraCode, `${os}-${i}-extra`)}
-                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 10px', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}
+                    style={{
+                      background: 'rgba(88,183,255,0.12)', border: '1px solid rgba(88,183,255,0.5)',
+                      borderRadius: 8, padding: '0 16px', fontFamily: 'var(--font-mono)',
+                      fontSize: 13, color: '#8dd8ff', cursor: 'pointer', flexShrink: 0, minWidth: 88,
+                    }}
                   >
                     {copied === `${os}-${i}-extra` ? '✓ COPIED' : 'COPY'}
                   </button>
@@ -244,15 +285,23 @@ export default function AgentSetup() {
               )}
  
               {step.note && (
-                <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', opacity: 0.75, marginBottom: step.link ? 6 : 0 }}>
-                  ℹ {step.note}
+                <div style={{
+                  fontSize: 14, color: '#c3d8e8', marginBottom: step.link ? 8 : 0,
+                  background: 'rgba(88,183,255,0.08)', border: '1px solid rgba(88,183,255,0.2)', borderRadius: 8, padding: '8px 10px',
+                }}>
+                  {step.note}
                 </div>
               )}
  
               {step.link && (
                 <a href={step.link.url} target="_blank" rel="noopener noreferrer"
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--green)', textDecoration: 'none', letterSpacing: 1 }}>
-                  ↗ {step.link.label}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    fontFamily: 'var(--font-display)', fontSize: 15, color: '#8dd8ff',
+                    textDecoration: 'none', letterSpacing: 0.5, border: '1px solid rgba(88,183,255,0.4)',
+                    padding: '8px 12px', borderRadius: 8, background: 'rgba(88,183,255,0.09)',
+                  }}>
+                  ⭳ {step.link.label}
                 </a>
               )}
             </div>
@@ -262,11 +311,13 @@ export default function AgentSetup() {
  
       {/* Safety notice */}
       <div style={{
-        background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.2)',
-        borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: 20,
+        background: 'rgba(6,12,18,0.9)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '22px 22px', marginBottom: 24,
       }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', letterSpacing: 1, marginBottom: 10 }}>🛡 WHAT THE AGENT DOES & DOES NOT DO</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-bright)', letterSpacing: 2, marginBottom: 14 }}>
+          WHAT THE AGENT DOES & DOES NOT DO
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {[
             { ok: true,  text: 'Scans devices on your local network (192.168.x.x)' },
             { ok: true,  text: 'Checks open ports on discovered devices' },
@@ -277,8 +328,13 @@ export default function AgentSetup() {
             { ok: false, text: 'Does NOT run in the background unless you use --watch' },
             { ok: false, text: 'Does NOT share data with any third party' },
           ].map((item, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
-              <span style={{ color: item.ok ? 'var(--green)' : 'var(--red)', flexShrink: 0, marginTop: 1 }}>{item.ok ? '✓' : '✗'}</span>
+            <div key={i} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 15, color: 'var(--text)',
+              lineHeight: 1.55, border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', background: 'rgba(255,255,255,0.01)',
+            }}>
+              <span style={{ color: item.ok ? 'var(--green)' : 'var(--red)', flexShrink: 0, marginTop: 1, fontSize: 18, fontWeight: 700 }}>
+                {item.ok ? '🛡' : '✖'}
+              </span>
               {item.text}
             </div>
           ))}
@@ -286,20 +342,20 @@ export default function AgentSetup() {
       </div>
  
       {/* Consent + Download */}
-      <div className="card" style={{ padding: '20px 24px' }}>
-        <div className="card-title" style={{ marginBottom: 16 }}>DOWNLOAD AGENT</div>
+      <div className="card" style={{ padding: '24px 24px' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-bright)', letterSpacing: 2, marginBottom: 14 }}>
+          DOWNLOAD AGENT
+        </div>
  
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', marginBottom: 20 }}>
           <input
             type="checkbox"
             checked={agreed}
             onChange={e => setAgreed(e.target.checked)}
-            style={{ marginTop: 2, accentColor: 'var(--green)', width: 15, height: 15, flexShrink: 0 }}
+            style={{ marginTop: 2, accentColor: 'var(--green)', width: 19, height: 19, flexShrink: 0 }}
           />
-          <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-            I understand that this is an open-source script that only scans my local network and sends results
-            to my NetGuard account. It does not harm my machine, does not collect personal data, and does not
-            run in the background unless I explicitly start it.
+          <span style={{ fontSize: 16, color: 'var(--text)', lineHeight: 1.6, fontWeight: 600 }}>
+            I understand that this script is open source, scans my network only, and does not harm my machine. I explicitly start it.
           </span>
         </label>
  
@@ -308,39 +364,42 @@ export default function AgentSetup() {
             className="btn-primary"
             disabled={!agreed}
             onClick={() => downloadFile(AGENT_URL, 'agent.py')}
-            style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}
+            style={{ opacity: agreed ? 1 : 0.45, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '12px 16px' }}
           >
-            ↓ DOWNLOAD agent.py
+            ⇓ Download agent.py
           </button>
           <button
-            className="btn-ghost"
+            className="btn-primary"
             disabled={!agreed}
             onClick={() => downloadFile(REQUIREMENTS_URL, 'requirements.txt')}
-            style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}
+            style={{ opacity: agreed ? 1 : 0.45, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '12px 16px' }}
           >
-            ↓ DOWNLOAD requirements.txt
+            ⇓ Download requirements.txt
           </button>
           <button
-            className="btn-ghost"
+            className="btn-primary"
             disabled={!agreed}
             onClick={downloadEnv}
-            style={{ opacity: agreed ? 1 : 0.4, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}
+            style={{ opacity: agreed ? 1 : 0.45, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '12px 16px' }}
           >
-            ↓ DOWNLOAD netguard.env
+            ⇓ Download netguard.env
           </button>
           <a
             href="https://github.com/kamikaz-tn/netguard/tree/main/agent"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+            style={{
+              fontFamily: 'var(--font-display)', fontSize: 14, color: 'var(--text)',
+              textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 7,
+              padding: '12px 16px', border: '1px solid var(--border2)', borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.01)',
+            }}
           >
-            ↗ VIEW SOURCE ON GITHUB
+            View Source on Github
           </a>
         </div>
  
-        {/* Rename hint */}
         {agreed && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 12, letterSpacing: 0.5, lineHeight: 1.8 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)', marginTop: 12, letterSpacing: 0.4, lineHeight: 1.8 }}>
             ℹ After downloading, rename{' '}
             <span style={{ color: 'var(--green)' }}>netguard.env</span>
             {' → '}
@@ -349,19 +408,29 @@ export default function AgentSetup() {
           </div>
         )}
  
-        {/* Error */}
         {envError && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--red)', marginTop: 10, letterSpacing: 0.5 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--red)', marginTop: 10, letterSpacing: 0.4 }}>
             ⚠ {envError}
           </div>
         )}
  
         {!agreed && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', marginTop: 10, letterSpacing: 1 }}>
-            ↑ Check the box above to enable download
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, color: 'var(--text)', marginTop: 14, letterSpacing: 0.5, fontWeight: 600 }}>
+            Check the box above to enable downloads.
           </div>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .main-content { padding: 14px !important; }
+        }
+        @media (max-width: 820px) {
+          .card {
+            padding: 18px 16px !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }

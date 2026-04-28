@@ -97,7 +97,7 @@ export default function Verify() {
         repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(232,53,74,0.04) 40px)
       `,
     }}>
-      <div style={{ width: '100%', maxWidth: 480, animation: 'hudBootUp 0.5s cubic-bezier(0.22,1,0.36,1) both' }}>
+      <div style={{ width: '100%', maxWidth: 620, animation: 'hudBootUp 0.5s cubic-bezier(0.22,1,0.36,1) both' }}>
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -106,11 +106,11 @@ export default function Verify() {
             alt="NetGuard"
             style={{ width: 250, maxWidth: '92%', height: 'auto', margin: '0 auto 10px', display: 'block', filter: 'drop-shadow(0 0 16px rgba(232,53,74,0.22))' }}
           />
-          <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 9, letterSpacing: 3, marginTop: 2 }}>EMAIL VERIFICATION</div>
+          <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontSize: 12, letterSpacing: 2, marginTop: 4 }}>EMAIL VERIFICATION</div>
         </div>
 
         {/* Card */}
-        <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+        <div className="card" style={{ padding: 38, textAlign: 'center' }}>
 
           {/* ── LOADING ── */}
           {status === 'loading' && (
@@ -118,10 +118,10 @@ export default function Verify() {
               <div style={{ marginBottom: 20 }}>
                 <span className="spinner" style={{ width: 36, height: 36, borderWidth: 3 }} />
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text)', letterSpacing: 2, marginBottom: 8 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--text)', letterSpacing: 2, marginBottom: 10 }}>
                 VERIFYING TOKEN
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', letterSpacing: 1 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--muted)', letterSpacing: 0.8 }}>
                 Contacting verification server...
               </div>
               <div className="scan-bar" style={{ marginTop: 24, width: '100%' }} />
@@ -146,10 +146,10 @@ export default function Verify() {
                 ✓
               </div>
 
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--blue)', letterSpacing: 2, marginBottom: 8 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--blue)', letterSpacing: 2, marginBottom: 10 }}>
                 EMAIL VERIFIED
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, marginBottom: 24 }}>
+              <div style={{ fontSize: 16, color: 'var(--text)', lineHeight: 1.7, marginBottom: 24 }}>
                 Your email address has been successfully verified. Your NetGuard account is now fully active.
               </div>
 
@@ -160,13 +160,13 @@ export default function Verify() {
                 borderRadius: 'var(--radius)',
                 padding: '12px 16px',
                 fontFamily: 'var(--font-mono)',
-                fontSize: 10,
-                color: 'var(--muted)',
+                fontSize: 13,
+                color: 'var(--text)',
                 letterSpacing: 1,
                 marginBottom: 20,
               }}>
                 Redirecting to {redirectDest} in{' '}
-                <span style={{ color: 'var(--blue)', fontWeight: 700, fontSize: 13 }}>{countdown}</span>
+                <span style={{ color: 'var(--blue)', fontWeight: 700, fontSize: 16 }}>{countdown}</span>
                 {' '}second{countdown !== 1 ? 's' : ''}...
               </div>
 
@@ -202,10 +202,10 @@ export default function Verify() {
                 ⚠
               </div>
 
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--red)', letterSpacing: 2, marginBottom: 8 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: 'var(--red)', letterSpacing: 2, marginBottom: 10 }}>
                 VERIFICATION FAILED
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, marginBottom: 16 }}>
+              <div style={{ fontSize: 16, color: 'var(--text)', lineHeight: 1.7, marginBottom: 16 }}>
                 {message}
               </div>
 
@@ -215,8 +215,8 @@ export default function Verify() {
                 borderRadius: 'var(--radius)',
                 padding: '12px 16px',
                 fontFamily: 'var(--font-mono)',
-                fontSize: 10,
-                color: 'var(--muted)',
+                fontSize: 13,
+                color: 'var(--text)',
                 letterSpacing: 1,
                 marginBottom: 20,
                 textAlign: 'left',
@@ -243,7 +243,7 @@ export default function Verify() {
         </div>
 
         {/* Footer */}
-        <div style={{ textAlign: 'center', marginTop: 16, fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--muted2)', letterSpacing: 1 }}>
+        <div style={{ textAlign: 'center', marginTop: 16, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted2)', letterSpacing: 1 }}>
           NETGUARD SECURITY PLATFORM · v2.0.0
         </div>
       </div>

@@ -142,8 +142,8 @@ function SecurityLog({ findings, scanHistory }) {
         height: 180,
         overflowY: 'auto',
         fontFamily: 'var(--font-mono)',
-        fontSize: 10,
-        lineHeight: 1.9,
+        fontSize: 12,
+        lineHeight: 1.8,
       }}
     >
       {entries.length === 0 ? (
@@ -179,9 +179,9 @@ function StatCard({ label, value, color = 'var(--red)', sub, icon, delay = 0, sp
   }, [value])
  
   return (
-    <div className="card" style={{ padding: '16px 20px', animation: `hudBootUp 0.4s ${delay}s both cubic-bezier(0.22,1,0.36,1)` }}>
+    <div className="card" style={{ padding: '18px 22px', animation: `hudBootUp 0.4s ${delay}s both cubic-bezier(0.22,1,0.36,1)` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 2 }}>{label.toUpperCase()}</div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 1.5 }}>{label.toUpperCase()}</div>
         {icon && <span style={{ fontSize: 14, opacity: 0.4 }}>{icon}</span>}
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
@@ -190,9 +190,7 @@ function StatCard({ label, value, color = 'var(--red)', sub, icon, delay = 0, sp
         </div>
         {sparkData && <Sparkline data={sparkData} color={sparkColor || color} />}
       </div>
-      {sub && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', marginTop: 6, letterSpacing: 1 }}>{sub}</div>
-      )}
+      {sub && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', marginTop: 6, letterSpacing: 0.8 }}>{sub}</div>}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, ${color}, transparent)`, opacity: 0.3, borderRadius: '0 0 var(--radius) var(--radius)' }} />
     </div>
   )
@@ -228,7 +226,7 @@ function FindingRow({ finding }) {
   return (
     <div className="threat-row" style={{ display: 'flex', gap: 10, padding: '8px 6px', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' }}>
       <div style={{ width: 6, height: 6, borderRadius: '50%', marginTop: 5, background: color, flexShrink: 0, boxShadow: sev === 'critical' ? `0 0 6px ${color}` : 'none' }} />
-      <div style={{ flex: 1, fontSize: 12, lineHeight: 1.5, minWidth: 0, wordBreak: 'break-word', color: 'var(--text)' }}>
+      <div style={{ flex: 1, fontSize: 14, lineHeight: 1.55, minWidth: 0, wordBreak: 'break-word', color: 'var(--text)' }}>
         {finding.description?.slice(0, 80)}…
       </div>
       <span className={`badge badge-${sev === 'critical' || sev === 'high' ? 'danger' : 'warning'}`} style={{ flexShrink: 0 }}>{sev}</span>
@@ -287,11 +285,11 @@ export default function Overview() {
     <div className="animate-in">
  
       {/* ── Header ── */}
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22, gap: 16 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)', letterSpacing: 3, marginBottom: 4 }}>MODULE_ID: OVR-001</div>
-          <h1 style={{ fontSize: 20, letterSpacing: 3, color: 'var(--text-bright)', marginBottom: 4 }}>NETWORK OVERVIEW</h1>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', letterSpacing: 2, marginBottom: 6 }}>MODULE_ID: OVR-001</div>
+          <h1 style={{ fontSize: 28, letterSpacing: 2, color: 'var(--text-bright)', marginBottom: 8 }}>NETWORK OVERVIEW</h1>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {latestScan ? (
               <>
                 <span><span style={{ color: 'var(--blue)' }}>LAST_SCAN</span> {new Date(latestScan.created_at).toLocaleString()}</span>
@@ -305,21 +303,21 @@ export default function Overview() {
             )}
           </div>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/agent-setup')} style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+        <button className="btn-primary" onClick={() => navigate('/agent-setup')} style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', fontSize: 13, padding: '10px 16px' }}>
           ▶ INITIATE SCAN
         </button>
       </div>
  
       {/* ── No scan banner ── */}
       {!latestScan && !loading && (
-        <div style={{ background: 'var(--red-dim)', border: '1px solid rgba(232,53,74,0.2)', borderLeft: '3px solid var(--red)', borderRadius: 'var(--radius)', padding: '14px 18px', marginBottom: 20, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: 'var(--red-dim)', border: '1px solid rgba(232,53,74,0.24)', borderLeft: '4px solid var(--red)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 22, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <span><span style={{ color: 'var(--red)', marginRight: 8 }}>⬡</span> No scan data. Deploy the local agent to scan your network.</span>
           <button className="btn-ghost" onClick={() => navigate('/agent-setup')} style={{ fontSize: 9, padding: '4px 12px' }}>SETUP AGENT →</button>
         </div>
       )}
  
       {/* ── KPI Stats ── */}
-      <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+      <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 18 }}>
         <StatCard label="Devices Found"    value={latestScan?.hosts_up}         color="var(--blue)"       sub={latestScan?.network_range ?? 'no range'} icon="◉" delay={0.05} sparkData={sparkDevices} sparkColor="var(--blue)" />
         <StatCard label="Open Ports"       value={latestScan?.total_ports}      color="var(--amber)"      sub="across all hosts"   icon="◎" delay={0.10} sparkData={sparkPorts}   sparkColor="var(--amber)" />
         <StatCard label="Threats Detected" value={latestScan?.threats_found}    color="var(--red-bright)" sub="critical findings"  icon="⚠" delay={0.15} sparkData={sparkThreats} sparkColor="var(--red)" />
@@ -327,12 +325,12 @@ export default function Overview() {
       </div>
  
       {/* ── Traffic Graph + Risk ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, marginBottom: 16 }} className="two-col-grid">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, marginBottom: 18 }} className="two-col-grid">
  
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div className="card-title" style={{ margin: 0 }}>SCAN HISTORY — PORT & THREAT TRENDS</div>
-            <div style={{ display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--muted)' }}>
+            <div style={{ display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)' }}>
               <span><span style={{ color: 'var(--blue)', marginRight: 4 }}>●</span>PORTS</span>
               <span><span style={{ color: 'var(--red)', marginRight: 4 }}>●</span>THREATS</span>
             </div>
@@ -370,7 +368,7 @@ export default function Overview() {
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+            <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
               Run a scan to see results
             </div>
           )}
@@ -385,7 +383,7 @@ export default function Overview() {
           {allFindings.length > 0 ? (
             allFindings.slice(0, 5).map((f, i) => <FindingRow key={i} finding={f} />)
           ) : (
-            <div style={{ textAlign: 'center', padding: '30px 0', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+            <div style={{ textAlign: 'center', padding: '30px 0', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
               {latestScan
                 ? <span style={{ color: 'var(--blue)' }}>◉ NO CRITICAL FINDINGS</span>
                 : <span style={{ color: 'var(--muted)' }}>No data yet</span>}
@@ -404,6 +402,21 @@ export default function Overview() {
           <SecurityLog findings={allFindings} scanHistory={scanHistory} />
         </div>
       </div>
+      <style>{`
+        @media (max-width: 1100px) {
+          .stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+        @media (max-width: 860px) {
+          .stat-grid, .two-col-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .page-header {
+            flex-direction: column;
+          }
+        }
+      `}</style>
     </div>
   )
 }
