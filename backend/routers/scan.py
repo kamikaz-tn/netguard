@@ -22,7 +22,7 @@ from sqlalchemy import select, desc
 from typing import List
  
 from core.database import get_db
-from core.auth import get_current_user, verify_agent_secret
+from core.auth import get_current_user, require_agent
 from models.db_models import ScanResult, ScanFinding, TrustedDevice
 from models.schemas import (
     ScanRequest, ScanResultOut, AgentScanPayload, DeviceInfo, ScanFindingOut
@@ -142,9 +142,7 @@ async def start_scan(
  
  
 # ── POST /api/scan/agent ──────────────────────────────────────────────────────
-@router.post("/agent", response_model=ScanResultOut)
-@limiter.limit("5/minute")
-@router.post("/agent", response_model=ScanResultOut)
+@router.post("/agent", response_model=ScanResultOut, dependencies=[Depends(require_agent)])
 @limiter.limit("5/minute")
 async def agent_push_scan(
     request: Request,
@@ -153,11 +151,9 @@ async def agent_push_scan(
 ):
     """
     Endpoint for the LOCAL AGENT to push scan results.
-    Authenticated via shared secret.
+    Authenticated via shared secret in `X-Agent-Secret` header.
     ALL devices are stored regardless of status.
     """
-    if not verify_agent_secret(payload.agent_secret):
-        raise HTTPException(status_code=401, detail="Invalid agent secret")
 
     if len(payload.devices) > 254:
         raise HTTPException(status_code=400, detail="Too many devices in payload")

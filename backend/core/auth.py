@@ -6,13 +6,14 @@ JWT creation, verification, and FastAPI dependency for protected routes.
 Token is stored in an httpOnly cookie (not localStorage) to prevent XSS theft.
 """
  
+import secrets as _secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
- 
+
 import bcrypt
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from jose import JWTError, jwt
- 
+
 from .config import settings
  
 COOKIE_NAME = "ng_token"
@@ -87,5 +88,13 @@ async def get_current_user(request: Request) -> dict:
  
  
 def verify_agent_secret(secret: str) -> bool:
-    """Check the shared secret sent by the local agent."""
-    return secret == settings.agent_secret
+    """Constant-time check of the shared secret sent by the local agent."""
+    if not secret:
+        return False
+    return _secrets.compare_digest(secret, settings.agent_secret)
+
+
+def require_agent(x_agent_secret: Optional[str] = Header(default=None)) -> None:
+    """FastAPI dependency: agent endpoints must send `X-Agent-Secret` header."""
+    if not verify_agent_secret(x_agent_secret or ""):
+        raise HTTPException(status_code=401, detail="Invalid agent secret")

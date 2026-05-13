@@ -62,7 +62,11 @@ except ImportError:
 load_dotenv(Path(__file__).parent / '.env')
 
 BACKEND_URL   = os.getenv("BACKEND_URL",   "https://netguard-production-4f1d.up.railway.app")
-AGENT_SECRET  = os.getenv("AGENT_SECRET",  "netguard_agent_secret_2026")
+AGENT_SECRET  = os.getenv("AGENT_SECRET",  "")
+if not AGENT_SECRET:
+    print("ERROR: AGENT_SECRET env var is required. Set it in agent/.env.")
+    sys.exit(1)
+AGENT_HEADERS = {"X-Agent-Secret": AGENT_SECRET}
 NETWORK_RANGE = os.getenv("NETWORK_RANGE", "")
 SCAN_TYPE     = os.getenv("SCAN_TYPE",     "full")
 
@@ -1040,7 +1044,8 @@ def poll_and_execute_kicks(network_range: str):
     try:
         resp = requests.get(
             f"{BACKEND_URL}/api/devices/agent/commands",
-            params={"agent_secret": AGENT_SECRET, "user_id": USER_ID},
+            params={"user_id": USER_ID},
+            headers=AGENT_HEADERS,
             timeout=10,
         )
         resp.raise_for_status()
@@ -1062,10 +1067,12 @@ def poll_and_execute_kicks(network_range: str):
 
 def _report_kick_result(kick_id: int, status: str, message: str):
     try:
-        requests.post(f"{BACKEND_URL}/api/devices/agent/kick-result", json={
-            "agent_secret": AGENT_SECRET,
-            "kick_id": kick_id, "status": status, "message": message,
-        }, timeout=10).raise_for_status()
+        requests.post(
+            f"{BACKEND_URL}/api/devices/agent/kick-result",
+            json={"kick_id": kick_id, "status": status, "message": message},
+            headers=AGENT_HEADERS,
+            timeout=10,
+        ).raise_for_status()
         log.info(f"Kick #{kick_id} reported as '{status}'")
     except Exception as e:
         log.error(f"Failed to report kick result: {e}")
@@ -1080,13 +1087,12 @@ def push_to_backend(devices: List[Dict], network_range: str) -> bool:
         log.error("USER_ID not set in agent/.env")
         return False
     payload = {
-        "agent_secret": AGENT_SECRET,
         "user_id":      USER_ID,
         "network_range": network_range,
         "devices":      devices,
     }
     try:
-        resp = requests.post(f"{BACKEND_URL}/api/scan/agent", json=payload, timeout=30)
+        resp = requests.post(f"{BACKEND_URL}/api/scan/agent", json=payload, headers=AGENT_HEADERS, timeout=30)
         resp.raise_for_status()
         data = resp.json()
         log.info(f"Scan accepted: ID {data.get('id')}, score {data.get('risk_score')}/100, {data.get('threats_found')} threats")

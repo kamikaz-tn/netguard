@@ -102,7 +102,6 @@ class ScanResultOut(BaseModel):
  
 # ── Agent data push ───────────────────────────────────────────────────────────
 class AgentScanPayload(BaseModel):
-    agent_secret: str
     user_id: int
     network_range: str
     devices: List[DeviceInfo]
@@ -128,7 +127,6 @@ class KickCommandOut(BaseModel):
  
 class AgentKickResult(BaseModel):
     """Agent sends this back after executing a kick."""
-    agent_secret: str
     kick_id: int
     status: str        # "done" or "failed"
     message: str = ""

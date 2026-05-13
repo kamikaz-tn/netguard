@@ -6,9 +6,9 @@ Endpoints for managing trusted/unknown devices and kick commands.
 Kick flow:
   1. User clicks Kick in dashboard → POST /api/devices/kick
   2. Backend stores KickCommand(status="pending") in DB
-  3. Agent polls GET /api/devices/agent/commands?agent_secret=...&user_id=...
+  3. Agent polls GET /api/devices/agent/commands?user_id=...  with X-Agent-Secret header
   4. Agent executes ARP deauth on target device
-  5. Agent reports result → POST /api/devices/agent/kick-result
+  5. Agent reports result → POST /api/devices/agent/kick-result  with X-Agent-Secret header
   6. Backend marks KickCommand(status="done" or "failed")
 """
  
@@ -19,7 +19,7 @@ from sqlalchemy import select, delete
 from typing import List
  
 from core.database import get_db
-from core.auth import get_current_user, verify_agent_secret
+from core.auth import get_current_user, require_agent
 from models.db_models import TrustedDevice, KickCommand
 from models.schemas import (
     TrustDeviceRequest, TrustedDeviceOut,
@@ -161,19 +161,15 @@ async def list_kicks(
  
  
 # ── GET /api/devices/agent/commands ──────────────────────────────────────────
-@router.get("/agent/commands")
+@router.get("/agent/commands", dependencies=[Depends(require_agent)])
 async def get_agent_commands(
-    agent_secret: str,
     user_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Agent polls this endpoint to get pending kick commands.
-    Authenticated via shared secret (not JWT — agent has no login session).
+    Authenticated via shared secret in `X-Agent-Secret` header.
     """
-    if not verify_agent_secret(agent_secret):
-        raise HTTPException(status_code=401, detail="Invalid agent secret")
- 
     result = await db.execute(
         select(KickCommand).where(
             KickCommand.user_id == user_id,
@@ -195,17 +191,15 @@ async def get_agent_commands(
  
  
 # ── POST /api/devices/agent/kick-result ──────────────────────────────────────
-@router.post("/agent/kick-result")
+@router.post("/agent/kick-result", dependencies=[Depends(require_agent)])
 async def agent_kick_result(
     body: AgentKickResult,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Agent reports back the result of executing a kick command.
+    Authenticated via shared secret in `X-Agent-Secret` header.
     """
-    if not verify_agent_secret(body.agent_secret):
-        raise HTTPException(status_code=401, detail="Invalid agent secret")
- 
     result = await db.execute(
         select(KickCommand).where(KickCommand.id == body.kick_id)
     )
