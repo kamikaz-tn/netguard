@@ -102,11 +102,14 @@ Create a `.env` file in the same folder as `agent.py`:
 
 ```env
 BACKEND_URL=https://netguard-production-4f1d.up.railway.app
-AGENT_SECRET=netguard_agent_secret_2026
+AGENT_SECRET=<must exactly match the backend's AGENT_SECRET — no default>
 USER_ID=<your user ID shown in the dashboard>
 NETWORK_RANGE=
 SCAN_TYPE=full
 ```
+
+> The agent sends `AGENT_SECRET` in an `X-Agent-Secret` HTTP header (never in URLs).
+> If the env var is missing the agent refuses to start.
 
 **4. Install dependencies and run**
 
@@ -149,15 +152,24 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Create `backend/.env`:
+Create `backend/.env` — `SECRET_KEY` and `AGENT_SECRET` are **required** (no defaults, min 32 chars). Generate them with:
+
+```powershell
+python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(48)); print('AGENT_SECRET=' + secrets.token_urlsafe(48))"
+```
 
 ```env
 GEMINI_API_KEY=your-gemini-key
-SECRET_KEY=your-random-secret
-AGENT_SECRET=netguard_agent_secret_2026
+SECRET_KEY=<48+ random chars — generated above>
+AGENT_SECRET=<48+ random chars — generated above>
 DATABASE_URL=sqlite+aiosqlite:///./netguard.db
 FRONTEND_ORIGIN=http://localhost:5173
+TURNSTILE_SECRET_KEY=<Cloudflare Turnstile secret, optional>
+BREVO_API_KEY=<optional, for email verification>
+BREVO_SENDER_EMAIL=<verified sender>
 ```
+
+The app **refuses to boot** if either secret is missing.
 
 API docs at: **http://localhost:8000/docs**
 
@@ -246,8 +258,8 @@ netguard/
 | POST | `/api/auth/login` | ❌ | Get JWT (httpOnly cookie) |
 | GET | `/api/auth/me` | ✅ | Current user info |
 | GET | `/api/auth/verify-email` | Token | Verify email address |
-| POST | `/api/scan/start` | ✅ | Trigger server-side scan |
-| POST | `/api/scan/agent` | Secret | Agent pushes scan data |
+| POST | `/api/scan/start` | ✅ | Trigger server-side scan (private IP ranges only, 3/min) |
+| POST | `/api/scan/agent` | Header | Agent pushes scan data — requires `X-Agent-Secret` |
 | GET | `/api/scan/results` | ✅ | Scan history |
 | GET | `/api/scan/{id}` | ✅ | Scan detail |
 | GET | `/api/devices/trusted` | ✅ | Trusted device list |
@@ -256,9 +268,9 @@ netguard/
 | POST | `/api/devices/kick` | ✅ | Kick device (via agent) |
 | POST | `/api/password/check` | ❌ | HIBP k-anonymity proxy |
 | GET | `/api/password/tips` | ❌ | Password best practices |
-| POST | `/api/chat/message` | ✅ | AI advisor chat |
-| GET | `/api/cve/lookup` | ✅ | CVE search by service/version |
-| GET | `/api/cve/port/{port}` | ✅ | CVE lookup by port number |
+| POST | `/api/chat/message` | ✅ | AI advisor chat (20/min) |
+| GET | `/api/cve/lookup` | ✅ | CVE search by service/version (30/min) |
+| GET | `/api/cve/port/{port}` | ✅ | CVE lookup by port number (30/min) |
 | GET | `/api/alerts` | ✅ | Alert history |
 | PATCH | `/api/alerts/read-all` | ✅ | Mark all alerts as read |
 | WS | `/ws/{user_id}?token=...` | JWT | Real-time alert stream |
@@ -298,8 +310,15 @@ the agent detects new issues — no polling required.
 ### Auth & Session Security
 - JWTs stored in **httpOnly cookies** — never exposed to JavaScript
 - No tokens in `localStorage` or `sessionStorage`
-- 24-hour token expiry
-- Rate limiting (200 req/min) on all endpoints via SlowAPI
+- **60-minute** JWT expiry (down from 24h)
+- **`token_version` claim** — password changes invalidate all other active sessions instantly
+- **Per-username login lockout** — 5 failed attempts → account locked for 15 min (defends against credential stuffing behind CDN/NAT)
+- **CSRF defense** — every state-changing request must include `X-Requested-With: NetGuard`; forged cross-site POSTs can't add this header without a CORS preflight
+- **Agent auth via header** — `X-Agent-Secret` never appears in URLs/logs; constant-time `secrets.compare_digest` comparison
+- **Email verification tokens** persisted in DB (survive restarts) with 24h expiry and rate-limited verification endpoint
+- **Captcha fail-closed** — Turnstile bypass only allowed when `DEBUG=true`
+- Per-endpoint rate limits via SlowAPI (login 5/min, scan 3/min, chat 20/min, CVE 30/min, …)
+- **Security headers** on every response: HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
 
 ---
 
@@ -340,27 +359,35 @@ Every `git push` to `main` automatically redeploys both Railway and Vercel.
 
 **Backend (`backend/.env` or Railway dashboard):**
 
-| Variable | Description |
-|----------|-------------|
-| `SECRET_KEY` | JWT signing secret |
-| `AGENT_SECRET` | Shared secret for agent authentication |
-| `GEMINI_API_KEY` | Google AI Studio API key |
-| `DATABASE_URL` | SQLite or Postgres connection string |
-| `FRONTEND_ORIGIN` | CORS allowed origin |
-| `BREVO_API_KEY` | Brevo email API key |
-| `BREVO_SENDER_EMAIL` | Verified sender address |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | ✅ | JWT signing secret — min 32 chars, no default, app refuses to boot if missing |
+| `AGENT_SECRET` | ✅ | Shared secret for agent auth — min 32 chars, no default |
+| `GEMINI_API_KEY` | ✅ | Google AI Studio API key |
+| `DATABASE_URL` |   | SQLite or Postgres connection string |
+| `FRONTEND_ORIGIN` |   | CORS allowed origin |
+| `TURNSTILE_SECRET_KEY` |   | Cloudflare Turnstile secret — captcha fails closed if blank in prod |
+| `BREVO_API_KEY` |   | Brevo email API key |
+| `BREVO_SENDER_EMAIL` |   | Verified sender address |
+| `DEBUG` |   | `true` to allow captcha bypass in dev — never set in prod |
+
+Generate strong secrets:
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
 
 > ⚠️ **Never commit secrets.** Use Railway's environment variable dashboard for production.
+> If a default value was ever committed to git history, **rotate it** — git history is public.
 
 **Agent (`agent/.env`):**
 
-| Variable | Description |
-|----------|-------------|
-| `BACKEND_URL` | Backend URL (Railway or localhost) |
-| `AGENT_SECRET` | Must match the backend value |
-| `USER_ID` | Your account's user ID |
-| `NETWORK_RANGE` | Optional — auto-detected if blank |
-| `SCAN_TYPE` | `full` or `quick` |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `BACKEND_URL` | ✅ | Backend URL (Railway or localhost) |
+| `AGENT_SECRET` | ✅ | Must exactly match the backend value — no default |
+| `USER_ID` | ✅ | Your account's user ID |
+| `NETWORK_RANGE` |   | Optional — auto-detected if blank; must be RFC1918/private |
+| `SCAN_TYPE` |   | `full` or `quick` |
 
 ---
 
