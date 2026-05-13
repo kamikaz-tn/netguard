@@ -10,8 +10,8 @@ aiofiles==23.2.1
 sqlalchemy==2.0.30
 alembic==1.13.1
 aiosqlite==0.20.0
-python-jose[cryptography]==3.3.0
-python-multipart==0.0.9
+python-jose[cryptography]==3.3.0  # NOTE: see security audit; plan migration to PyJWT (CVE-2024-33663/33664)
+python-multipart==0.0.18
 reportlab==4.2.0
 bcrypt>=4.0.0
 google-genai

@@ -13,8 +13,11 @@ from typing import Optional
 import bcrypt
 from fastapi import Depends, Header, HTTPException, Request, status
 from jose import JWTError, jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
+from .database import get_db
  
 COOKIE_NAME = "ng_token"
  
@@ -71,8 +74,17 @@ def _extract_token(request: Request) -> Optional[str]:
     return None
  
  
-async def get_current_user(request: Request) -> dict:
-    """FastAPI dependency — inject into any route to require authentication."""
+async def get_current_user(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    FastAPI dependency — inject into any route to require authentication.
+
+    Verifies the JWT signature AND checks token_version matches the User row,
+    so password changes / logout-everywhere invalidate existing tokens
+    before their TTL expires.
+    """
     token = _extract_token(request)
     if not token:
         raise HTTPException(
@@ -84,7 +96,23 @@ async def get_current_user(request: Request) -> dict:
     user_id: str = payload.get("sub")
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    return {"user_id": user_id, "username": payload.get("username")}
+
+    # Lazy import avoids a circular dep on db_models at module-load time.
+    from models.db_models import User
+    result = await db.execute(select(User).where(User.id == int(user_id)))
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Account no longer valid")
+
+    token_version = payload.get("tv", 0)
+    if token_version != (user.token_version or 0):
+        raise HTTPException(status_code=401, detail="Session expired. Please log in again.")
+
+    return {
+        "user_id": user_id,
+        "username": payload.get("username"),
+        "token_version": user.token_version or 0,
+    }
  
  
 def verify_agent_secret(secret: str) -> bool:

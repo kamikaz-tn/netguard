@@ -90,7 +90,8 @@ def _set_auth_cookie(response: Response, token: str):
  
 async def verify_turnstile(token: str) -> bool:
     if not settings.turnstile_secret_key:
-        return True
+        # In debug/dev allow bypass; in prod refuse (fail-closed).
+        return settings.debug
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -134,7 +135,6 @@ async def _send_email_brevo(to: str, subject: str, html: str) -> bool:
     if not resp.is_success:
         raise RuntimeError(f"Brevo API error {resp.status_code}: {resp.text}")
 
-    print(f"✓ Email sent via Brevo to {to}")
     return True
  
  
@@ -226,7 +226,8 @@ async def register(request: Request, body: UserRegister, response: Response, db:
         select(User).where((User.username == body.username) | (User.email == body.email))
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already registered")
+        # Generic message to prevent account enumeration via probe attempts.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Registration failed. Please try different credentials.")
  
     user = User(
         username=body.username,
@@ -235,8 +236,12 @@ async def register(request: Request, body: UserRegister, response: Response, db:
     )
     db.add(user)
     await db.flush()
- 
-    token = create_access_token({"sub": str(user.id), "username": user.username})
+
+    token = create_access_token({
+        "sub": str(user.id),
+        "username": user.username,
+        "tv": user.token_version or 0,
+    })
     _set_auth_cookie(response, token)
     return TokenResponse(access_token=token, username=user.username)
  
@@ -283,7 +288,11 @@ async def login(
     user.locked_until = None
     await db.flush()
 
-    token = create_access_token({"sub": str(user.id), "username": user.username})
+    token = create_access_token({
+        "sub": str(user.id),
+        "username": user.username,
+        "tv": user.token_version or 0,
+    })
     _set_auth_cookie(response, token)
     return TokenResponse(access_token=token, username=user.username)
  
@@ -296,7 +305,11 @@ async def logout(response: Response):
 @router.get("/ws-ticket")
 async def get_ws_ticket(current_user: dict = Depends(get_current_user)):
     ws_token = create_access_token(
-        {"sub": current_user["user_id"], "username": current_user["username"]},
+        {
+            "sub": current_user["user_id"],
+            "username": current_user["username"],
+            "tv": current_user.get("token_version", 0),
+        },
         expires_delta=timedelta(seconds=60),
     )
     return {"ticket": ws_token}
@@ -427,6 +440,7 @@ async def update_profile(
 @router.post("/change-password")
 async def change_password(
     body: PasswordChange,
+    response: Response,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -434,18 +448,29 @@ async def change_password(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
- 
+
     if not verify_password(body.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
- 
+
     if len(body.new_password) < 8:
         raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
- 
+
     if body.new_password == body.current_password:
         raise HTTPException(status_code=400, detail="New password must differ from current password")
- 
+
     user.hashed_password = hash_password(body.new_password)
+    # Bump token_version so any other active sessions (other devices / stolen
+    # tokens) are immediately invalidated. Re-issue cookie so the current
+    # browser stays logged in.
+    user.token_version = (user.token_version or 0) + 1
     await db.flush()
+
+    new_token = create_access_token({
+        "sub": str(user.id),
+        "username": user.username,
+        "tv": user.token_version,
+    })
+    _set_auth_cookie(response, new_token)
     return {"detail": "Password changed successfully"}
  
  

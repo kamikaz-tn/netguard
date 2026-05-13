@@ -18,12 +18,15 @@ import httpx
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from pydantic import BaseModel
 
 from core.auth import get_current_user
 
 router = APIRouter(prefix="/api/cve", tags=["CVE Lookup"])
+limiter = Limiter(key_func=get_remote_address)
 
 # ── In-memory cache: key → (timestamp, data) ─────────────────────────────────
 # Avoids hammering NVD on repeated lookups for the same service.
@@ -165,7 +168,9 @@ async def _fetch_nvd(keyword: str, max_results: int = 8) -> List[CVEItem]:
 
 # ── GET /api/cve/lookup ───────────────────────────────────────────────────────
 @router.get("/lookup", response_model=CVEResponse)
+@limiter.limit("30/minute")
 async def lookup_cve(
+    request: Request,
     service: str = Query(..., min_length=2, max_length=60, description="Service name, e.g. 'apache'"),
     version: Optional[str] = Query(None, max_length=40, description="Version string, e.g. '2.4.51'"),
     current_user: dict = Depends(get_current_user),
@@ -204,7 +209,9 @@ async def lookup_cve(
 
 # ── GET /api/cve/port/{port} ──────────────────────────────────────────────────
 @router.get("/port/{port}", response_model=CVEResponse)
+@limiter.limit("30/minute")
 async def lookup_cve_by_port(
+    request: Request,
     port: int,
     current_user: dict = Depends(get_current_user),
 ):

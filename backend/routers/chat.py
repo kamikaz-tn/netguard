@@ -6,7 +6,11 @@ Injects the user's latest scan context into every request
 so Claude gives specific, relevant advice.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
@@ -17,6 +21,8 @@ from models.schemas import ChatRequest, ChatResponse
 from services.ai_advisor import get_ai_response
 
 router = APIRouter(prefix="/api/chat", tags=["AI Advisor"])
+limiter = Limiter(key_func=get_remote_address)
+log = logging.getLogger(__name__)
 
 
 async def _get_scan_context(user_id: int, db: AsyncSession) -> dict | None:
@@ -56,7 +62,9 @@ async def _get_scan_context(user_id: int, db: AsyncSession) -> dict | None:
 
 
 @router.post("/message", response_model=ChatResponse)
+@limiter.limit("20/minute")
 async def chat(
+    request: Request,
     body: ChatRequest,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
@@ -64,15 +72,14 @@ async def chat(
     """
     Send a message to the AI security advisor.
     Full conversation history must be sent on each request (stateless API).
-    Automatically injects the user's latest scan as context.
+    The user's latest scan is always loaded server-side as context — we never
+    trust client-supplied scan_context (prevents prompt injection via fake findings).
     """
     if not body.messages:
         raise HTTPException(status_code=422, detail="messages array cannot be empty")
 
     user_id = int(current_user["user_id"])
-
-    # Use caller-provided context, or load from DB
-    scan_context = body.scan_context or await _get_scan_context(user_id, db)
+    scan_context = await _get_scan_context(user_id, db)
 
     try:
         reply = await get_ai_response(
@@ -80,7 +87,8 @@ async def chat(
             scan_context=scan_context,
         )
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"AI service error: {str(e)}")
+        log.exception("AI advisor failed: %s", e)
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable.")
 
     return ChatResponse(
         reply=reply,

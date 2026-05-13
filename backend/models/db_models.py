@@ -40,6 +40,10 @@ class User(Base):
     # rate-limit collapses behind shared CDN/NAT IPs)
     failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     locked_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Bumped on password change / explicit "log out everywhere" so existing JWTs
+    # are rejected even before their TTL expires.
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
  
     scans = relationship("ScanResult", back_populates="user", cascade="all, delete-orphan")
     devices = relationship("TrustedDevice", back_populates="user", cascade="all, delete-orphan")
