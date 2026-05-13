@@ -10,16 +10,29 @@ Flow:
   POST /api/scan/agent    → agent pushes completed scan data (agent-mode)
 """
  
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+import ipaddress
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-
-limiter = Limiter(key_func=get_remote_address)
-
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List
+
+limiter = Limiter(key_func=get_remote_address)
+
+
+def _require_private_network(network_range: str) -> None:
+    """Reject scan targets outside RFC1918 / loopback / link-local ranges."""
+    try:
+        net = ipaddress.ip_network(network_range, strict=False)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid network range")
+    if not (net.is_private or net.is_loopback or net.is_link_local):
+        raise HTTPException(
+            status_code=400,
+            detail="Only private/loopback/link-local network ranges may be scanned",
+        )
  
 from core.database import get_db
 from core.auth import get_current_user, require_agent
@@ -83,7 +96,9 @@ async def _persist_scan(
  
 # ── POST /api/scan/start ──────────────────────────────────────────────────────
 @router.post("/start", response_model=ScanResultOut)
+@limiter.limit("3/minute")
 async def start_scan(
+    request: Request,
     body: ScanRequest,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
@@ -93,8 +108,10 @@ async def start_scan(
     NOTE: In production, this should be called by the local agent,
     not the server (the server doesn't have access to the LAN).
     """
+    _require_private_network(body.network_range)
     user_id = int(current_user["user_id"])
- 
+
+
     trusted_result = await db.execute(
         select(TrustedDevice).where(
             TrustedDevice.user_id == user_id,
@@ -154,6 +171,7 @@ async def agent_push_scan(
     Authenticated via shared secret in `X-Agent-Secret` header.
     ALL devices are stored regardless of status.
     """
+    _require_private_network(payload.network_range)
 
     if len(payload.devices) > 254:
         raise HTTPException(status_code=400, detail="Too many devices in payload")
