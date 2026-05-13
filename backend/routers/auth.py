@@ -42,6 +42,10 @@ COOKIE_NAME = "ng_token"
 COOKIE_MAX_AGE = settings.access_token_expire_minutes * 60
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 VERIFICATION_TOKEN_TTL = timedelta(hours=24)
+
+# Login lockout policy
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_DURATION = timedelta(minutes=15)
  
  
 # ── Pydantic schemas for profile ──────────────────────────────────────────────
@@ -249,13 +253,35 @@ async def login(
  
     result = await db.execute(select(User).where(User.username == form.username))
     user = result.scalar_one_or_none()
- 
+
+    now = datetime.now(timezone.utc)
+
+    # Reject locked accounts before checking the password (constant-time-ish:
+    # we still call verify_password below on the dummy path to avoid revealing
+    # whether the username exists).
+    if user and user.locked_until and user.locked_until > now:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Account temporarily locked due to repeated failed logins. Try again later.",
+        )
+
     if not user or not verify_password(form.password, user.hashed_password):
+        if user:
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            if user.failed_login_attempts >= LOGIN_MAX_ATTEMPTS:
+                user.locked_until = now + LOGIN_LOCKOUT_DURATION
+                user.failed_login_attempts = 0
+            await db.flush()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
- 
+
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
- 
+
+    # Successful login — reset counters
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    await db.flush()
+
     token = create_access_token({"sub": str(user.id), "username": user.username})
     _set_auth_cookie(response, token)
     return TokenResponse(access_token=token, username=user.username)

@@ -35,6 +35,11 @@ class User(Base):
     avatar_url: Mapped[str] = mapped_column(String(500), default="", server_default="")
     bio: Mapped[str] = mapped_column(Text, default="", server_default="")
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
+    # Login lockout (per-user, defends against credential stuffing where per-IP
+    # rate-limit collapses behind shared CDN/NAT IPs)
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    locked_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
  
     scans = relationship("ScanResult", back_populates="user", cascade="all, delete-orphan")
     devices = relationship("TrustedDevice", back_populates="user", cascade="all, delete-orphan")
