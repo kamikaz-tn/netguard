@@ -4,7 +4,6 @@ netguard/backend/main.py
 FastAPI application entry point with rate limiting.
 Session 16: added CVE lookup router.
 """
-import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -79,22 +78,3 @@ async def health_check():
 @app.get("/", tags=["System"])
 async def root():
     return {"message": "NetGuard API is running", "docs": "/docs", "health": "/health"}
- 
- 
-@app.get("/debug-env", tags=["System"])
-async def debug_env():
-    return {
-        "gemini_set": bool(os.environ.get("GEMINI_API_KEY")),
-        "gemini_length": len(os.environ.get("GEMINI_API_KEY", "")),
-        "all_keys": [k for k in os.environ.keys() if "GEMINI" in k.upper()]
-    }
-
-@app.get("/debug-gmail", tags=["System"])
-async def debug_gmail():
-    import os
-    return {
-        "gmail_user_set": bool(settings.gmail_user),
-        "gmail_password_set": bool(settings.gmail_password),
-        "env_gmail_user": bool(os.environ.get("GMAIL_USER")),
-        "env_gmail_password": bool(os.environ.get("GMAIL_PASSWORD")),
-    }
