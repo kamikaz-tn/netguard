@@ -159,17 +159,18 @@ async def start_scan(
  
  
 # ── POST /api/scan/agent ──────────────────────────────────────────────────────
-@router.post("/agent", response_model=ScanResultOut, dependencies=[Depends(require_agent)])
+@router.post("/agent", response_model=ScanResultOut)
 @limiter.limit("5/minute")
 async def agent_push_scan(
     request: Request,
     payload: AgentScanPayload,
+    user_id: int = Depends(require_agent),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Endpoint for the LOCAL AGENT to push scan results.
-    Authenticated via shared secret in `X-Agent-Secret` header.
-    ALL devices are stored regardless of status.
+    Authenticated via per-user `X-Agent-Token` header. user_id is derived
+    from the token and any client-supplied user_id field is ignored.
     """
     _require_private_network(payload.network_range)
 
@@ -182,7 +183,7 @@ async def agent_push_scan(
     # Apply trusted device status from DB
     trusted_result = await db.execute(
         select(TrustedDevice).where(
-            TrustedDevice.user_id == payload.user_id,
+            TrustedDevice.user_id == user_id,
             TrustedDevice.is_trusted == True
         )
     )
@@ -197,13 +198,13 @@ async def agent_push_scan(
     risk_score = compute_network_risk_score(devices, findings)
 
     scan = await _persist_scan(
-        db, payload.user_id, payload.network_range, devices, findings, risk_score
+        db, user_id, payload.network_range, devices, findings, risk_score
     )
 
     # Push critical/high alerts to user via WebSocket
     for f in findings:
         if f.severity in ("critical", "high"):
-            await manager.send_to_user(payload.user_id, {
+            await manager.send_to_user(user_id, {
                 "type": "alert",
                 "severity": f.severity,
                 "message": f.description,

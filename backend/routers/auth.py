@@ -25,7 +25,7 @@ from slowapi.util import get_remote_address
 from core.database import get_db
 from core.auth import (
     verify_password, hash_password, create_access_token,
-    get_current_user,
+    get_current_user, generate_agent_token,
 )
 from core.config import settings
 from models.db_models import User, ScanResult, VerificationToken
@@ -364,8 +364,70 @@ async def verify_email(
     frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=f"{frontend_origin}/profile?verified=1")
- 
- 
+
+
+# ── Agent token endpoints ────────────────────────────────────────────────────
+
+@router.post("/agent-token", status_code=201)
+async def issue_agent_token(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Issue (or rotate) the per-user agent token.
+
+    Returns the raw token ONCE. Only the SHA-256 hash is stored, so we can't
+    show it to the user again — they must save it now or rotate.
+    """
+    result = await db.execute(select(User).where(User.id == int(current_user["user_id"])))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    raw, token_hash = generate_agent_token()
+    user.agent_token_hash = token_hash
+    user.agent_token_created_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    return {
+        "token": raw,
+        "user_id": user.id,
+        "created_at": user.agent_token_created_at.isoformat(),
+        "warning": "Store this token securely — it is shown only once.",
+    }
+
+
+@router.get("/agent-token")
+async def get_agent_token_status(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Indicate whether the user has an agent token (without revealing it)."""
+    result = await db.execute(select(User).where(User.id == int(current_user["user_id"])))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "exists": bool(user.agent_token_hash),
+        "created_at": user.agent_token_created_at.isoformat() if user.agent_token_created_at else None,
+    }
+
+
+@router.delete("/agent-token", status_code=204)
+async def revoke_agent_token(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Revoke the current agent token. The user must issue a new one to keep using an agent."""
+    result = await db.execute(select(User).where(User.id == int(current_user["user_id"])))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.agent_token_hash = None
+    user.agent_token_created_at = None
+    await db.flush()
+
+
 # ── Profile endpoints ─────────────────────────────────────────────────────────
  
 @router.get("/profile", response_model=ProfileResponse)

@@ -33,7 +33,8 @@ class Settings(BaseSettings):
     backend_url: str = "https://netguard-production-4f1d.up.railway.app"
  
     # ── Agent ────────────────────────────────────────────────────────────────
-    agent_secret: str = Field(..., min_length=32)
+    # Per-user agent tokens are issued from the dashboard and stored hashed on
+    # the User row. No global agent secret anymore.
  
     # ── External APIs ────────────────────────────────────────────────────────
     hibp_api_key: str = ""

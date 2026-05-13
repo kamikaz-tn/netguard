@@ -90,16 +90,19 @@ export default function AgentSetup() {
  
   async function downloadEnv() {
     setEnvError('')
+    if (!window.confirm(
+      'Downloading a new .env will generate a fresh agent token and revoke the previous one. ' +
+      'Any agent still running with the old token will stop working until you update it. Continue?'
+    )) return
     try {
-      const me = await auth.me()
+      const res = await auth.issueAgentToken()   // rotates server-side, returns raw token ONCE
       const content = [
         `BACKEND_URL=https://netguard-production-4f1d.up.railway.app`,
-        `AGENT_SECRET=netguard_agent_secret_2026`,
-        `USER_ID=${me.user_id}`,
+        `AGENT_TOKEN=${res.token}`,
         `NETWORK_RANGE=`,
         `SCAN_TYPE=full`,
       ].join('\n')
- 
+
       const blob = new Blob([content], { type: 'text/plain' })
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement('a')
@@ -111,7 +114,7 @@ export default function AgentSetup() {
       URL.revokeObjectURL(url)
     } catch (err) {
       console.error('downloadEnv failed:', err)
-      setEnvError('Could not fetch your user ID. Make sure you are logged in.')
+      setEnvError(err?.message || 'Could not generate agent token. Make sure you are logged in.')
     }
   }
  

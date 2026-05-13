@@ -6,13 +6,14 @@ JWT creation, verification, and FastAPI dependency for protected routes.
 Token is stored in an httpOnly cookie (not localStorage) to prevent XSS theft.
 """
  
+import hashlib
 import secrets as _secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
+import jwt
 from fastapi import Depends, Header, HTTPException, Request, status
-from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +43,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-    except JWTError:
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -115,14 +116,38 @@ async def get_current_user(
     }
  
  
-def verify_agent_secret(secret: str) -> bool:
-    """Constant-time check of the shared secret sent by the local agent."""
-    if not secret:
-        return False
-    return _secrets.compare_digest(secret, settings.agent_secret)
+def hash_agent_token(raw: str) -> str:
+    """SHA-256 of the raw agent token. We store only the hash."""
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def require_agent(x_agent_secret: Optional[str] = Header(default=None)) -> None:
-    """FastAPI dependency: agent endpoints must send `X-Agent-Secret` header."""
-    if not verify_agent_secret(x_agent_secret or ""):
-        raise HTTPException(status_code=401, detail="Invalid agent secret")
+def generate_agent_token() -> tuple[str, str]:
+    """Return (raw_token, sha256_hash). The raw value is shown to the user once."""
+    raw = _secrets.token_urlsafe(48)
+    return raw, hash_agent_token(raw)
+
+
+async def require_agent(
+    x_agent_token: Optional[str] = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> int:
+    """
+    FastAPI dependency for agent endpoints.
+
+    Looks up the user from the `X-Agent-Token` header (SHA-256 → User.agent_token_hash)
+    and returns their user_id. The user_id NEVER comes from the request body/query —
+    that prevents a compromised agent from impersonating other users.
+    """
+    if not x_agent_token:
+        raise HTTPException(status_code=401, detail="Missing X-Agent-Token header")
+
+    token_hash = hash_agent_token(x_agent_token)
+
+    # Lazy import to avoid circular dep on db_models at module load.
+    from models.db_models import User
+    result = await db.execute(select(User).where(User.agent_token_hash == token_hash))
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Invalid agent token")
+
+    return user.id

@@ -123,7 +123,20 @@ export const auth = {
   async profile() {
     return apiFetch("/api/auth/profile")
   },
- 
+
+  async agentTokenStatus() {
+    return apiFetch("/api/auth/agent-token")
+  },
+
+  async issueAgentToken() {
+    // Returns { token, user_id, created_at, warning } — token is shown ONCE.
+    return apiFetch("/api/auth/agent-token", { method: "POST" })
+  },
+
+  async revokeAgentToken() {
+    return apiFetch("/api/auth/agent-token", { method: "DELETE" })
+  },
+
   isLoggedIn: () => auth_state.isLoggedIn(),
 };
  
@@ -218,10 +231,11 @@ export const password = {
 // ══════════════════════════════════════════════════════════════════════════════
  
 export const chat = {
-  async send(messages, scanContext = null) {
+  async send(messages) {
+    // scan_context is loaded server-side — never sent from the client.
     return apiFetch("/api/chat/message", {
       method: "POST",
-      body: JSON.stringify({ messages, scan_context: scanContext }),
+      body: JSON.stringify({ messages }),
     });
   },
 };

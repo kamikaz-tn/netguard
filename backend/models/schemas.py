@@ -102,7 +102,7 @@ class ScanResultOut(BaseModel):
  
 # ── Agent data push ───────────────────────────────────────────────────────────
 class AgentScanPayload(BaseModel):
-    user_id: int
+    # user_id is derived server-side from the X-Agent-Token header.
     network_range: str
     devices: List[DeviceInfo]
  
@@ -178,7 +178,9 @@ class ChatMessage(BaseModel):
  
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
-    scan_context: Optional[dict] = None
+    # NOTE: scan_context is loaded server-side from the user's DB record.
+    # We deliberately don't accept it from the client to prevent prompt injection
+    # via forged findings.
  
  
 class ChatResponse(BaseModel):

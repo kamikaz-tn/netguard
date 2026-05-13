@@ -102,14 +102,15 @@ Create a `.env` file in the same folder as `agent.py`:
 
 ```env
 BACKEND_URL=https://netguard-production-4f1d.up.railway.app
-AGENT_SECRET=<must exactly match the backend's AGENT_SECRET — no default>
-USER_ID=<your user ID shown in the dashboard>
+AGENT_TOKEN=<generated for you on the Agent Setup page — keep it secret>
 NETWORK_RANGE=
 SCAN_TYPE=full
 ```
 
-> The agent sends `AGENT_SECRET` in an `X-Agent-Secret` HTTP header (never in URLs).
-> If the env var is missing the agent refuses to start.
+> The agent sends `AGENT_TOKEN` in an `X-Agent-Token` HTTP header (never in URLs).
+> Each user has their own token (stored hashed on the server), so leaking it
+> only impacts that one account. The server derives `user_id` from the token —
+> the agent no longer needs to know it.
 
 **4. Install dependencies and run**
 
@@ -161,7 +162,6 @@ python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(48)); pri
 ```env
 GEMINI_API_KEY=your-gemini-key
 SECRET_KEY=<48+ random chars — generated above>
-AGENT_SECRET=<48+ random chars — generated above>
 DATABASE_URL=sqlite+aiosqlite:///./netguard.db
 FRONTEND_ORIGIN=http://localhost:5173
 TURNSTILE_SECRET_KEY=<Cloudflare Turnstile secret, optional>
@@ -169,7 +169,7 @@ BREVO_API_KEY=<optional, for email verification>
 BREVO_SENDER_EMAIL=<verified sender>
 ```
 
-The app **refuses to boot** if either secret is missing.
+The app **refuses to boot** if `SECRET_KEY` is missing. Agent authentication uses per-user tokens issued from the dashboard — there is no global agent secret anymore.
 
 API docs at: **http://localhost:8000/docs**
 
@@ -362,7 +362,6 @@ Every `git push` to `main` automatically redeploys both Railway and Vercel.
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `SECRET_KEY` | ✅ | JWT signing secret — min 32 chars, no default, app refuses to boot if missing |
-| `AGENT_SECRET` | ✅ | Shared secret for agent auth — min 32 chars, no default |
 | `GEMINI_API_KEY` | ✅ | Google AI Studio API key |
 | `DATABASE_URL` |   | SQLite or Postgres connection string |
 | `FRONTEND_ORIGIN` |   | CORS allowed origin |
@@ -384,8 +383,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `BACKEND_URL` | ✅ | Backend URL (Railway or localhost) |
-| `AGENT_SECRET` | ✅ | Must exactly match the backend value — no default |
-| `USER_ID` | ✅ | Your account's user ID |
+| `AGENT_TOKEN` | ✅ | Per-user token issued from the Agent Setup page; sent as `X-Agent-Token` header |
 | `NETWORK_RANGE` |   | Optional — auto-detected if blank; must be RFC1918/private |
 | `SCAN_TYPE` |   | `full` or `quick` |
 

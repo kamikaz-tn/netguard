@@ -161,14 +161,15 @@ async def list_kicks(
  
  
 # ── GET /api/devices/agent/commands ──────────────────────────────────────────
-@router.get("/agent/commands", dependencies=[Depends(require_agent)])
+@router.get("/agent/commands")
 async def get_agent_commands(
-    user_id: int,
+    user_id: int = Depends(require_agent),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Agent polls this endpoint to get pending kick commands.
-    Authenticated via shared secret in `X-Agent-Secret` header.
+    Authenticated via per-user `X-Agent-Token` header. user_id is derived
+    from the token — never supplied by the client.
     """
     result = await db.execute(
         select(KickCommand).where(
@@ -177,7 +178,7 @@ async def get_agent_commands(
         )
     )
     commands = result.scalars().all()
- 
+
     return {
         "commands": [
             {
@@ -188,27 +189,31 @@ async def get_agent_commands(
             for cmd in commands
         ]
     }
- 
- 
+
+
 # ── POST /api/devices/agent/kick-result ──────────────────────────────────────
-@router.post("/agent/kick-result", dependencies=[Depends(require_agent)])
+@router.post("/agent/kick-result")
 async def agent_kick_result(
     body: AgentKickResult,
+    user_id: int = Depends(require_agent),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Agent reports back the result of executing a kick command.
-    Authenticated via shared secret in `X-Agent-Secret` header.
+    The kick must belong to the agent's owning user.
     """
     result = await db.execute(
-        select(KickCommand).where(KickCommand.id == body.kick_id)
+        select(KickCommand).where(
+            KickCommand.id == body.kick_id,
+            KickCommand.user_id == user_id,
+        )
     )
     cmd = result.scalar_one_or_none()
     if not cmd:
         raise HTTPException(status_code=404, detail="Kick command not found")
- 
+
     cmd.status = body.status   # "done" or "failed"
     cmd.executed_at = datetime.now(timezone.utc)
     await db.flush()
- 
+
     return {"ok": True, "kick_id": body.kick_id, "status": body.status}

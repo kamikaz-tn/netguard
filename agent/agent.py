@@ -62,14 +62,16 @@ except ImportError:
 load_dotenv(Path(__file__).parent / '.env')
 
 BACKEND_URL   = os.getenv("BACKEND_URL",   "https://netguard-production-4f1d.up.railway.app")
-AGENT_SECRET  = os.getenv("AGENT_SECRET",  "")
-if not AGENT_SECRET:
-    print("ERROR: AGENT_SECRET env var is required. Set it in agent/.env.")
+AGENT_TOKEN   = os.getenv("AGENT_TOKEN",   "") or os.getenv("AGENT_SECRET", "")  # AGENT_SECRET fallback for old .env files
+if not AGENT_TOKEN:
+    print("ERROR: AGENT_TOKEN env var is required. Generate one from the dashboard (Agent Setup page) and put it in agent/.env.")
     sys.exit(1)
-AGENT_HEADERS = {"X-Agent-Secret": AGENT_SECRET}
+AGENT_HEADERS = {"X-Agent-Token": AGENT_TOKEN}
 NETWORK_RANGE = os.getenv("NETWORK_RANGE", "")
 SCAN_TYPE     = os.getenv("SCAN_TYPE",     "full")
 
+# USER_ID is no longer required — the backend derives it from the agent token.
+# Kept for backward-compat with older code paths that still reference it.
 _user_id_raw = os.getenv("USER_ID", "").strip()
 USER_ID: Optional[int] = int(_user_id_raw) if _user_id_raw.isdigit() else None
 
@@ -1039,12 +1041,9 @@ def resolve_ip_for_mac(target_mac: str, network_range: str) -> Optional[str]:
 
 
 def poll_and_execute_kicks(network_range: str):
-    if USER_ID is None:
-        return
     try:
         resp = requests.get(
             f"{BACKEND_URL}/api/devices/agent/commands",
-            params={"user_id": USER_ID},
             headers=AGENT_HEADERS,
             timeout=10,
         )
@@ -1083,11 +1082,7 @@ def _report_kick_result(kick_id: int, status: str, message: str):
 # ==============================================================================
 
 def push_to_backend(devices: List[Dict], network_range: str) -> bool:
-    if USER_ID is None:
-        log.error("USER_ID not set in agent/.env")
-        return False
     payload = {
-        "user_id":      USER_ID,
         "network_range": network_range,
         "devices":      devices,
     }

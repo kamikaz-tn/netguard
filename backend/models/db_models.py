@@ -41,6 +41,12 @@ class User(Base):
     failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     locked_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Per-user agent token (SHA-256 of the raw token; raw value is shown to the
+    # user exactly once at generation time). Replaces the global AGENT_SECRET so
+    # a single leak no longer impersonates every user.
+    agent_token_hash: Mapped[str] = mapped_column(String(64), nullable=True, unique=True, index=True)
+    agent_token_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Bumped on password change / explicit "log out everywhere" so existing JWTs
     # are rejected even before their TTL expires.
     token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
