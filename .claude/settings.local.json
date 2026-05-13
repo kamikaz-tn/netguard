@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\wiouu\\\\Downloads\\\\Rapport_PFE_oumeimafatma-fiinalee24-1 \\(2\\) \\(1\\).pdf\")",
+      "Bash(where pdftotext *)",
+      "Bash(pip list *)",
+      "Bash(pdftotext -layout \"C:\\\\Users\\\\wiouu\\\\Downloads\\\\Rapport_PFE_oumeimafatma-fiinalee24-1 \\(2\\) \\(1\\).pdf\" \"C:\\\\Users\\\\wiouu\\\\Downloads\\\\example_report.txt\")",
+      "Bash(where pandoc *)",
+      "Bash(python -c \"import markdown, weasyprint\")",
+      "Bash(python -c \"import reportlab; print\\(reportlab.Version\\)\")",
+      "Bash(python -c \"from xhtml2pdf import pisa; print\\('ok'\\)\")",
+      "Bash(python -c \"import fpdf; print\\(fpdf.__version__\\)\")",
+      "Bash(pip install *)",
+      "Bash(python -c \"from docx import Document; d=Document\\(r'C:\\\\Users\\\\wiouu\\\\Downloads\\\\Cahier des Charges \\(1\\).docx'\\); [print\\(p.style.name+'|'+p.text\\) for p in d.paragraphs]\")",
+      "Bash(python -c ' *)",
+      "Bash(python build_cdc_pdf.py)",
+      "Bash(python build_rapport_pdf.py)",
+      "Bash(cd C:/dev/netguard && rm -f _page_*.png)",
+      "Bash(git -C C:/dev/netguard check-ignore -v backend/.env agent/.env)",
+      "Bash(git -C C:/dev/netguard log --all --oneline -- backend/.env)",
+      "Bash(git check-ignore *)"
+    ]
+  }
+}

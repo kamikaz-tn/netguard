@@ -5,19 +5,22 @@ Central settings loaded from .env via pydantic-settings.
 """
  
 from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
 from functools import lru_cache
- 
- 
+
+
 class Settings(BaseSettings):
     # ── API ──────────────────────────────────────────────────────────────────
     app_name: str = "NetGuard API"
     app_version: str = "1.0.0"
     debug: bool = False
- 
+
     # ── Auth ─────────────────────────────────────────────────────────────────
-    secret_key: str = "netguard_super_secret_key_2026"
+    # secret_key and agent_secret have NO defaults — must be set via env.
+    # The app refuses to boot if either is missing or too short.
+    secret_key: str = Field(..., min_length=32)
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 1440   # 24 hours
+    access_token_expire_minutes: int = 60
     turnstile_secret_key: str = ""
  
     # ── Database ─────────────────────────────────────────────────────────────
@@ -30,7 +33,7 @@ class Settings(BaseSettings):
     backend_url: str = "https://netguard-production-4f1d.up.railway.app"
  
     # ── Agent ────────────────────────────────────────────────────────────────
-    agent_secret: str = "netguard_agent_secret_2026"
+    agent_secret: str = Field(..., min_length=32)
  
     # ── External APIs ────────────────────────────────────────────────────────
     hibp_api_key: str = ""
