@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -48,7 +49,39 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
- 
+
+
+# ── CSRF defense ─────────────────────────────────────────────────────────────
+# Cookies are SameSite=None, so we can't rely on the browser's built-in CSRF
+# protection. Instead, require a custom header on every state-changing request.
+# Browsers force a CORS preflight when a non-safelisted header is sent, and our
+# CORS allowlist blocks unknown origins — so forged cross-site POSTs can't
+# include this header and will fail.
+_CSRF_SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
+# Agent endpoints authenticate via X-Agent-Secret, not the session cookie,
+# so they're not vulnerable to CSRF.
+_CSRF_EXEMPT_PATHS = (
+    "/api/scan/agent",
+    "/api/devices/agent/",
+)
+
+
+class CSRFHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method in _CSRF_SAFE_METHODS:
+            return await call_next(request)
+        if request.url.path.startswith(_CSRF_EXEMPT_PATHS):
+            return await call_next(request)
+        if not request.headers.get("x-requested-with"):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Missing X-Requested-With header"},
+            )
+        return await call_next(request)
+
+
+app.add_middleware(CSRFHeaderMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

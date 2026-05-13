@@ -48,9 +48,10 @@ function parseError(data) {
 async function apiFetch(path, options = {}) {
   const headers = {
     "Content-Type": "application/json",
+    "X-Requested-With": "NetGuard",   // CSRF guard — forces CORS preflight
     ...options.headers,
   };
- 
+
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
@@ -95,7 +96,10 @@ export const auth = {
     });
     const response = await fetch(`${BASE_URL}/api/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "NetGuard",
+      },
       body: form,
       credentials: "include",
     });

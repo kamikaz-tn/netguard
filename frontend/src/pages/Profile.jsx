@@ -15,37 +15,39 @@ const profileApi = {
     fetch(`${BASE_URL}/api/auth/profile`, {
       method: 'PATCH',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NetGuard' },
       body: JSON.stringify(body),
     }).then(async r => {
       if (!r.ok) throw new Error((await r.json()).detail || 'Update failed')
       return r.json()
     }),
- 
+
   changePassword: (body) =>
     fetch(`${BASE_URL}/api/auth/change-password`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NetGuard' },
       body: JSON.stringify(body),
     }).then(async r => {
       if (!r.ok) throw new Error((await r.json()).detail || 'Failed to change password')
       return r.json()
     }),
- 
+
   sendVerification: () =>
     fetch(`${BASE_URL}/api/auth/send-verification`, {
       method: 'POST',
       credentials: 'include',
+      headers: { 'X-Requested-With': 'NetGuard' },
     }).then(async r => {
       if (!r.ok) throw new Error((await r.json()).detail || 'Failed to send email')
       return r.json()
     }),
- 
+
   deleteAccount: () =>
     fetch(`${BASE_URL}/api/auth/account`, {
       method: 'DELETE',
       credentials: 'include',
+      headers: { 'X-Requested-With': 'NetGuard' },
     }).then(async r => {
       if (!r.ok) throw new Error((await r.json()).detail || 'Failed to delete account')
       return r.json()

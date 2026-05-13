@@ -19,7 +19,7 @@ const KICK_STATUS_MAP = {
 async function kickDevice(macAddress, targetIp) {
   const res = await fetch(`${BASE_URL}/api/devices/kick`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'NetGuard' },
     credentials: 'include',   // ← sends httpOnly cookie
     body: JSON.stringify({ mac_address: macAddress, target_ip: targetIp || null }),
   })
