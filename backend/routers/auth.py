@@ -18,17 +18,17 @@ from datetime import timedelta, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from slowapi import Limiter
 from slowapi.util import get_remote_address
- 
+
 from core.database import get_db
 from core.auth import (
     verify_password, hash_password, create_access_token,
     get_current_user,
 )
 from core.config import settings
-from models.db_models import User, ScanResult
+from models.db_models import User, ScanResult, VerificationToken
 from models.schemas import UserRegister, TokenResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -41,10 +41,7 @@ limiter = Limiter(key_func=get_remote_address)
 COOKIE_NAME = "ng_token"
 COOKIE_MAX_AGE = settings.access_token_expire_minutes * 60
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
- 
-# ── In-memory token store (swap for DB/Redis in production) ───────────────────
-# token → {"user_id": int, "expires": datetime}
-_verification_tokens: dict = {}
+VERIFICATION_TOKEN_TTL = timedelta(hours=24)
  
  
 # ── Pydantic schemas for profile ──────────────────────────────────────────────
@@ -151,13 +148,17 @@ async def send_verification_email(
  
     if getattr(user, "email_verified", False):
         raise HTTPException(status_code=400, detail="Email is already verified")
- 
+
+    # Invalidate any existing tokens for this user, then issue a fresh one
+    await db.execute(delete(VerificationToken).where(VerificationToken.user_id == user.id))
     token = secrets.token_urlsafe(32)
-    _verification_tokens[token] = {
-        "user_id": user.id,
-        "expires": datetime.now(timezone.utc) + timedelta(hours=24),
-    }
- 
+    db.add(VerificationToken(
+        user_id=user.id,
+        token=token,
+        expires_at=datetime.now(timezone.utc) + VERIFICATION_TOKEN_TTL,
+    ))
+    await db.flush()
+
     frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
     verify_url = f"{frontend_origin}/verify?token={token}"
  
@@ -284,7 +285,9 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 # client where they have no active session cookie.
  
 @router.get("/verify-email")
+@limiter.limit("10/minute")
 async def verify_email(
+    request: Request,
     token: str,
     db: AsyncSession = Depends(get_db),
 ):
@@ -293,24 +296,30 @@ async def verify_email(
     No auth required — the token itself is the credential.
     Marks the account verified then redirects to the frontend profile page.
     """
-    entry = _verification_tokens.get(token)
+    result = await db.execute(
+        select(VerificationToken).where(VerificationToken.token == token)
+    )
+    entry = result.scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=400, detail="Invalid or expired verification link. Please request a new one from your profile page.")
- 
-    if datetime.now(timezone.utc) > entry["expires"]:
-        del _verification_tokens[token]
+
+    if datetime.now(timezone.utc) > entry.expires_at:
+        await db.delete(entry)
+        await db.flush()
         raise HTTPException(status_code=400, detail="Verification link has expired (24h). Please request a new one from your profile page.")
- 
-    result = await db.execute(select(User).where(User.id == entry["user_id"]))
-    user = result.scalar_one_or_none()
+
+    user_result = await db.execute(select(User).where(User.id == entry.user_id))
+    user = user_result.scalar_one_or_none()
     if not user:
+        await db.delete(entry)
+        await db.flush()
         raise HTTPException(status_code=404, detail="User not found.")
- 
+
     if hasattr(user, "email_verified"):
         user.email_verified = True
-    del _verification_tokens[token]
+    await db.delete(entry)
     await db.flush()
- 
+
     # Redirect to frontend profile page with success flag
     frontend_origin = getattr(settings, "frontend_origin", "https://netguard-peach.vercel.app")
     from fastapi.responses import RedirectResponse
