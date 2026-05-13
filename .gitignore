@@ -46,6 +46,9 @@ dist/
 *.swp
 *.swo
 
+# Claude Code local config
+.claude/
+
 # OS
 Thumbs.db
 Desktop.ini
