@@ -172,14 +172,15 @@ async def send_verification_email(
             subject="NetGuard — Verify your email address",
             html=_verification_email_html(user.username, verify_url),
         )
-        return {"detail": f"Verification email sent to {user.email}"}
+        return {"detail": "Verification email sent."}
     except Exception as e:
-        error_msg = str(e)
-        print(f"⚠ send_verification_email failed for {user.email}: {error_msg}")
-        # Surface the real SMTP error to the frontend
+        # Log full error server-side; return a generic message to the client.
+        # Provider responses can leak account info, quotas, sender domain, etc.
+        import logging
+        logging.getLogger(__name__).exception("send_verification_email failed: %s", e)
         raise HTTPException(
             status_code=503,
-            detail=f"Email sending failed: {error_msg}"
+            detail="Could not send verification email. Please try again later.",
         )
  
  
