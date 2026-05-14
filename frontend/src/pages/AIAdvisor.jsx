@@ -86,7 +86,6 @@ export default function AIAdvisor() {
     try {
       const res = await chatApi.send(
         updatedMessages.filter(m => m.role !== 'system'),
-        scanContext
       )
       setMessages(prev => [...prev, { role: 'assistant', content: res.reply }])
     } catch (err) {
